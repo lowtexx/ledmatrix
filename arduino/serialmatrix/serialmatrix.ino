@@ -51,24 +51,19 @@ uint32_t pix;
 uint16_t r,g,b;
 
 int RX_LED_PIN = 17; // Pin of the RXLED on Arduino Pro
+#define DEFAULT_BRIGHTNESS 30
 
 void setup() {
   // pin configuration did not work! -- LED is ON
 //  pinMode(RX_LED_PIN, OUTPUT);  // Set RX LED as an output
 //  digitalWrite(RX_LED_PIN, HIGH);    // set the RX LED OFF
-// serial interface is connected via USB --> Use Serial Monitor to see the output
-  Serial.begin(250000);
-  // TODO: will this work if no USB Cable is connected?
-  while(!Serial); 
-  Serial.println("Matrix Display Driver - Start");
-  
-  //Set Baudrate to 250k
-  Serial1.begin(250000);
-  Serial1.setTimeout(60000);//TODO 1 minute timeout? ??
-  
+
+  //initialize the main display;
+  // clear and disable fast to prevent bootup problems
   matrix.begin();
+  matrix.setBrightness(DEFAULT_BRIGHTNESS);
   matrix.show();
-  matrix.setBrightness(50);
+  
   // draw bootscreen (raspberry)
   for (int c=0;c<10;c++)
   {
@@ -86,14 +81,23 @@ void setup() {
 //  matrix.drawPixel(0,pixel,matrix.Color(0, 20, 0xE0));    
 //} 
 //matrix.show(); 
+// serial interface is connected via USB --> Use Serial Monitor to see the output
+  Serial.begin(250000);
+  // TODO: will this work if no USB Cable is connected?
+  //while(!Serial); 
+  Serial.println("Matrix Display Driver - Start");
+  
+  //Set Baudrate to 250k
+  Serial1.begin(250000);
+  Serial1.setTimeout(60000);//TODO 1 minute timeout? ??
 }
 
 char buffer[200];
 
 
 void loop() {
-  Serial.println("Cmd?");
-  Serial1.println("Arduino talking to Rasp. Hello?");
+  //Serial.println("Cmd?");
+  //Serial1.println("Arduino talking to Rasp. Hello?");
   Serial1.readBytes(buffer,1);
   
   switch(buffer[0])
