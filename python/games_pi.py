@@ -8,15 +8,15 @@
 # Released under a "Simplified BSD" license
 
 import random, time, sys, socket, threading, queue, socketserver, os
-from PIL import Image
+from PIL import Image # tested with pillow-6.2.1
+
 
 # If Pi = False the script runs in simulation mode using pygame lib
-PI = True
+PI = False
 import pygame
 from pygame.locals import *
 if PI:
     import serial
-    #import max7219.led as led
     from luma.led_matrix.device import max7219
     from luma.core.interface.serial import spi, noop
     from luma.core.legacy.font import proportional, SINCLAIR_FONT, TINY_FONT, CP437_FONT
@@ -266,6 +266,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 #print(data)
             #self.request.sendall(response)
 
+
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
@@ -296,14 +297,10 @@ def main():
         BIGFONT = pygame.font.Font('freesansbold.ttf', 100)
         pygame.display.set_caption('Pi Games')
     else:
-        # audio disabled
-#        os.environ["SDL_VIDEODRIVER"] = "dummy" #dummy display for pygame audio
-#        pygame.init()
-#        pygame.mixer.music.load('tetrisb.mid')
         #MAX2719device.brightness(1) TODO needs fix
         MAX2719device.clear()
         #MAX2719device.show_message("Waiting for controller...", font=proportional(CP437_FONT),delay=0.015)
-        show_message(MAX2719device, "Waiting for controller...", fill="white", font=proportional(CP437_FONT)) # TODO fix delay
+        show_message(MAX2719device, "Waiting for controller...", fill="white", font=proportional(CP437_FONT),scroll_delay=0.015)
 
     # Port 0 means to select an arbitrary unused port
 
@@ -320,16 +317,16 @@ def main():
     server_thread.start()
     print("Server loop running in thread:", server_thread.name)
     clearScreen()
+    #drawClock(1)
 
-    drawClock(1)
     if PI:
         #MAX2719device.show_message("Let's play", font=proportional(CP437_FONT),delay=0.03)
-        show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT))# TODO fix delay
+        show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
 
     while True:
-
-        clearScreen()
-        drawSymbols()
+        #clearScreen()
+        #drawSymbols()
+        runTetrisGame() # BUG run only the tetris game for now
         while myQueue.empty():
             time.sleep(.1)
             a1_counter+=1
@@ -339,20 +336,16 @@ def main():
             time.sleep(.1)
 
         event = myQueue.get()
-
         if event.type == QKEYDOWN:
             if (event.key == BUTTON_BLUE):
                 runSnakeGame()
             elif (event.key == BUTTON_YELLOW):
-#                if PI:
-#                    pygame.mixer.music.play(-1,0.0)
                 runTetrisGame()
-#                if PI:
-#                    pygame.mixer.music.stop()
             elif (event.key == BUTTON_RED):
                 runPongGame()
             elif (event.key == BUTTON_GREEN):
                 drawClock(1)
+        
 
     terminate()
 
@@ -379,7 +372,7 @@ def runPongGame():
     lastLowerMoveSidewaysTime = time.time()
     lastUpperMoveSidewaysTime = time.time()
 
-    while True: # main game loop
+    while True: # main game loop for pong
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYDOWN:
@@ -600,8 +593,7 @@ def runSnakeGame():
         time.sleep(.15)
 
 def runTetrisGame():
-    # setup varia
-    # bles for the start of the game
+    # setup variables for the start of the game
     if PI:
         #MAX2719device.brightness(1)
         #MAX2719device.flush()
@@ -640,11 +632,41 @@ def runTetrisGame():
         if not PI:
             checkForQuit()
 
+#ugly hack to get keyboard inputs directly without the simulation
+        for event in pygame.event.get():
+        #if event.type == pygame.QUIT:  # Usually wise to be able to close your program.
+        #    raise SystemExit
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    print("Player pressed up!")
+                    myQueue.put(qEvent(2,QKEYDOWN)) # key 2 equals up
+                elif event.key == pygame.K_LEFT:
+                    print("Player pressed left!")
+                    myQueue.put(qEvent(0,QKEYDOWN)) # key 0 equals left
+                elif event.key == pygame.K_DOWN:
+                    print("Player pressed down!")
+                    myQueue.put(qEvent(3,QKEYDOWN)) # key 2 equals up
+                elif event.key == pygame.K_RIGHT:
+                    print("Player pressed right!")
+                    myQueue.put(qEvent(1,QKEYDOWN)) # key 1 equals right
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_UP:
+                    print("Player pressed up!")
+                    myQueue.put(qEvent(2,QKEYUP)) # key 2 equals up
+                elif event.key == pygame.K_LEFT:
+                    print("Player pressed left!")
+                    myQueue.put(qEvent(0,QKEYUP)) # key 0 equals left
+                elif event.key == pygame.K_DOWN:
+                    print("Player pressed down!")
+                    myQueue.put(qEvent(3,QKEYUP)) # key 2 equals up
+                elif event.key == pygame.K_RIGHT:
+                    print("Player pressed right!")
+                    myQueue.put(qEvent(1,QKEYUP)) # key 1 equals right
+
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYUP:
                 if (event.key == 7):
-
                     lastFallTime = time.time()
                     lastMoveDownTime = time.time()
                     lastMoveSidewaysTime = time.time()
@@ -790,7 +812,7 @@ def drawClock(color):
 
     if PI:
         MAX2719device.clear()
-        #MAX2719device.flush();
+        #MAX2719device.flush() # TODO no implementation of flush
 
     hour =  time.localtime().tm_hour
     minute= time.localtime().tm_min
@@ -802,13 +824,13 @@ def drawClock(color):
             if event.type == QKEYDOWN:
                 if (event.key == 5):
                     # Pausing the game
-                    return;
+                    return
             elif event.type == QKEYUP:
                 if (event.key == 7):
                     # Pausing the game
-                    return;
+                    return
         if not PI:
-                checkForQuit()
+            checkForQuit()
 
         ltime =  time.localtime()
         hour = ltime.tm_hour
