@@ -11,17 +11,27 @@ import random, time, sys, socket, threading, queue, socketserver, os
 from PIL import Image
 
 # If Pi = False the script runs in simulation mode using pygame lib
-PI = False
+PI = True
 import pygame
 from pygame.locals import *
 if PI:
     import serial
-    import max7219.led as led
-    from max7219.font import proportional, SINCLAIR_FONT, TINY_FONT, CP437_FONT
+    #import max7219.led as led
+    from luma.led_matrix.device import max7219
+    from luma.core.interface.serial import spi, noop
+    from luma.core.legacy.font import proportional, SINCLAIR_FONT, TINY_FONT, CP437_FONT
+    from luma.core.legacy import show_message, text
 
 # only modify this two values for size adaption!
 PIXEL_X=10
 PIXEL_Y=20
+
+
+MAX2719_DISPLAYS=4 # number of cascaded displays
+MAX2719_ORIENTATION=90 # Corrects block orientation when wired vertically choices=[0, 90, -90]
+MAX2719_ROTATION=0 # Rotate display 0=0°, 1=90°, 2=180°, 3=270° choices=[0, 1, 2, 3]
+#PORT_NAME = "/dev/ttyAMA0"
+PORT_NAME = "/dev/ttyS0"
 
 SIZE= 20
 FPS = 15
@@ -217,8 +227,11 @@ theTetrisFont = [
 # serial port pi #
 
 if PI:
-    serport=serial.Serial("/dev/ttyAMA0",baudrate= 500000,timeout=3.0)
-    device = led.matrix(cascaded=4)
+    serport=serial.Serial(PORT_NAME,baudrate=250000,timeout=3.0)
+    spiPort = spi(port=0, device=0, gpio=noop())
+    MAX2719device = max7219(spiPort, cascaded=MAX2719_DISPLAYS, block_orientation=MAX2719_ORIENTATION,
+                    rotate=MAX2719_ROTATION or 0, blocks_arranged_in_reverse_order=False)
+    ##MAX2719device = led.matrix(cascaded=4)
 
 # key server for controller #
 
@@ -287,8 +300,10 @@ def main():
 #        os.environ["SDL_VIDEODRIVER"] = "dummy" #dummy display for pygame audio
 #        pygame.init()
 #        pygame.mixer.music.load('tetrisb.mid')
-        device.brightness(1)
-        device.show_message("Waiting for controller...", font=proportional(CP437_FONT),delay=0.015)
+        #MAX2719device.brightness(1) TODO needs fix
+        MAX2719device.clear()
+        #MAX2719device.show_message("Waiting for controller...", font=proportional(CP437_FONT),delay=0.015)
+        show_message(MAX2719device, "Waiting for controller...", fill="white", font=proportional(CP437_FONT)) # TODO fix delay
 
     # Port 0 means to select an arbitrary unused port
 
@@ -308,7 +323,8 @@ def main():
 
     drawClock(1)
     if PI:
-        device.show_message("Let's play", font=proportional(CP437_FONT),delay=0.03)
+        #MAX2719device.show_message("Let's play", font=proportional(CP437_FONT),delay=0.03)
+        show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT))# TODO fix delay
 
     while True:
 
@@ -393,19 +409,19 @@ def runPongGame():
 
         if (movingLeftLower) and time.time() - lastLowerMoveSidewaysTime > MOVESIDEWAYSFREQ:
             if lowerbarx >1:
-                lowerbarx-=1;
+                lowerbarx-=1
             lastLowerMoveSidewaysTime = time.time()
         if (movingRightLower) and time.time() - lastLowerMoveSidewaysTime > MOVESIDEWAYSFREQ:
             if lowerbarx <PIXEL_X-2:
-                lowerbarx+=1;
+                lowerbarx+=1
             lastLowerMoveSidewaysTime = time.time()
         if (movingLeftUpper) and time.time() - lastUpperMoveSidewaysTime > MOVESIDEWAYSFREQ:
             if upperbarx >1:
-                upperbarx-=1;
+                upperbarx-=1
             lastUpperMoveSidewaysTime = time.time()
         if (movingRightUpper) and time.time() - lastUpperMoveSidewaysTime > MOVESIDEWAYSFREQ:
             if upperbarx <PIXEL_X-2:
-                upperbarx+=1;
+                upperbarx+=1
             lastUpperMoveSidewaysTime = time.time()
 
         if not PI:
@@ -587,8 +603,9 @@ def runTetrisGame():
     # setup varia
     # bles for the start of the game
     if PI:
-        device.brightness(1)
-        device.flush()
+        #MAX2719device.brightness(1)
+        #MAX2719device.flush()
+        MAX2719device.clear()
     board = getBlankBoard()
     lastMoveDownTime = time.time()
     lastMoveSidewaysTime = time.time()
@@ -772,8 +789,8 @@ def drawSymbols():
 def drawClock(color):
 
     if PI:
-        device.clear();
-        device.flush();
+        MAX2719device.clear()
+        #MAX2719device.flush();
 
     hour =  time.localtime().tm_hour
     minute= time.localtime().tm_min
@@ -881,7 +898,7 @@ def drawTetrisMAX7219(piece,offsetx,offsety):
 
 def drawScorePixel(x,y,on):
     if PI:
-        device.pixel(31-x,y,on,False)
+        MAX2719device.pixel(31-x,y,on,False)
     else:
         pygame.draw.rect(DISPLAYSURF, COLORS[2], (64-2*x, 410+2*y,2,2))
 
@@ -891,7 +908,8 @@ def makeTextObjs(text, font, color):
 
 def scrollText(text):
     if PI:
-        device.show_message(text, font=proportional(CP437_FONT))
+        show_message(MAX2719device, text, fill="white", font=proportional(CP437_FONT))
+        #MAX2719device.show_message(text, font=proportional(CP437_FONT))
     else:
         titleSurf, titleRect = makeTextObjs(str(text), BASICFONT, TEXTCOLOR)
         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
@@ -903,7 +921,7 @@ def scoreText(score):
         _score = 9999
     if PI:
         for i in range(0,4):
-            device.letter(3-i, ord('0') + (_score%10))
+            MAX2719device.letter(3-i, ord('0') + (_score%10))
             _score //=10
     else:
         titleSurf, titleRect = makeTextObjs(str(_score), BASICFONT, TEXTCOLOR)
@@ -912,7 +930,7 @@ def scoreText(score):
 
 def scoreTetris(score,level,nextpiece):
     if PI:
-        device.clear()
+        MAX2719device.clear()
     _score=score
     if _score>999999:
         _score = 999999
@@ -929,8 +947,9 @@ def scoreTetris(score,level,nextpiece):
     # draw next piece
     drawTetrisMAX7219(nextpiece,27,0)
 
-    if PI:
-        device.flush()
+# BUG no replacement for flush
+   # if PI:
+   #     MAX2719device.flush()
 
 def twoscoreText(score1,score2):
     _score1=score1
@@ -940,10 +959,10 @@ def twoscoreText(score1,score2):
     if _score2>9:
         _score2 = 9
     if PI:
-        device.letter(0, ord('0') + (_score1))
-        device.letter(1, ord(':'))
-        device.letter(2, ord('0') + (_score2))
-        device.letter(3, ord(' '))
+        MAX2719device.letter(0, ord('0') + (_score1))
+        MAX2719device.letter(1, ord(':'))
+        MAX2719device.letter(2, ord('0') + (_score2))
+        MAX2719device.letter(3, ord(' '))
     else:
         titleSurf, titleRect = makeTextObjs(str(_score1)+':'+str(_score2), BASICFONT, TEXTCOLOR)
         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
