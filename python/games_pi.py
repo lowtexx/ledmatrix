@@ -12,13 +12,14 @@ from PIL import Image # tested with pillow-6.2.1
 
 
 # If Pi = False the script runs in simulation mode using pygame lib
-PI = False
+PI = True
 import pygame
 from pygame.locals import *
 if PI:
     import serial
     from luma.led_matrix.device import max7219
     from luma.core.interface.serial import spi, noop
+    from luma.core.render import canvas
     from luma.core.legacy.font import proportional, SINCLAIR_FONT, TINY_FONT, CP437_FONT
     from luma.core.legacy import show_message, text
 
@@ -80,6 +81,15 @@ BUTTON_BLUE=4
 BUTTON_GREEN=5
 BUTTON_RED=6
 BUTTON_YELLOW=7
+
+#constants for the communication with the external display driver (Arduino) - only 4 commands are currently used
+#COMMANDBYTE_SETBRIGHTNESS = 22 # command to set the LED Brightness of the Main Display; Followed by 1 Byte: Brightness value
+COMMANDBYTE_DRAWPIXELRGB = 24 # command to set a pixel to a RGB color; followed by 5 byte: X-pos, Y-pos, R-Value, G-Value, B-Value
+COMMANDBYTE_DRAWPIXELCOLOR = 26 # command to set a pixel to a RGB color, selected from internal palet; followed by 3 byte: X-pos, Y-pos, Color-Index
+#COMMANDBYTE_FULLSCREEN = 28 # command to set the full screen, followed by 200 bytes for each pixel, selected from internal pallet
+COMMANDBYTE_UPDATESCREEN = 30 # command to update the screen
+COMMANDBYTE_CLEARSCREEN  = 32 # command to clear the screen
+
 
 TEMPLATEWIDTH = 5
 TEMPLATEHEIGHT = 5
@@ -240,6 +250,7 @@ if PI:
 
 # key server for controller #
 
+#TODO simply use pygame events?
 QKEYDOWN=0
 QKEYUP=1
 myQueue = queue.Queue()
@@ -645,36 +656,38 @@ def runTetrisGame():
             checkForQuit()
 
 #ugly hack to get keyboard inputs directly without the simulation
-        for event in pygame.event.get():
-        #if event.type == pygame.QUIT:  # Usually wise to be able to close your program.
-        #    raise SystemExit
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    print("Player pressed up!")
-                    myQueue.put(qEvent(BUTTON_UP,QKEYDOWN)) 
-                elif event.key == pygame.K_LEFT:
-                    print("Player pressed left!")
-                    myQueue.put(qEvent(BUTTON_LEFT,QKEYDOWN))
-                elif event.key == pygame.K_DOWN:
-                    print("Player pressed down!")
-                    myQueue.put(qEvent(BUTTON_DOWN,QKEYDOWN))
-                elif event.key == pygame.K_RIGHT:
-                    print("Player pressed right!")
-                    myQueue.put(qEvent(BUTTON_RIGHT,QKEYDOWN))
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_UP:
-                    myQueue.put(qEvent(BUTTON_UP,QKEYUP))
-                elif event.key == pygame.K_LEFT:
-                    myQueue.put(qEvent(BUTTON_LEFT,QKEYUP))
-                elif event.key == pygame.K_DOWN:
-                    myQueue.put(qEvent(BUTTON_DOWN,QKEYUP))
-                elif event.key == pygame.K_RIGHT:
-                    myQueue.put(qEvent(BUTTON_RIGHT,QKEYUP))
+#add the pygame key events to the local key event queue
+#TODO this needs to be done globally
+        if not PI:
+            for event in pygame.event.get():
+            #if event.type == pygame.QUIT:  # Usually wise to be able to close your program.
+            #    raise SystemExit
+                if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                    if event.type == pygame.KEYDOWN:
+                        thisEventType = QKEYDOWN
+                    else:
+                        thisEventType = QKEYUP
+                    if event.key == pygame.K_UP:
+                        myQueue.put(qEvent(BUTTON_UP,thisEventType)) 
+                    elif event.key == pygame.K_DOWN:
+                        myQueue.put(qEvent(BUTTON_DOWN,thisEventType))
+                    elif event.key == pygame.K_LEFT:
+                        myQueue.put(qEvent(BUTTON_LEFT,thisEventType))
+                    elif event.key == pygame.K_RIGHT:
+                        myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+                    elif event.key == pygame.K_1: # Maps #1 Key to Blue Button 
+                        myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
+                    elif event.key == pygame.K_2: # Maps #2 Key to Green Button 
+                        myQueue.put(qEvent(BUTTON_GREEN,thisEventType))
+                    elif event.key == pygame.K_3: # Maps #3 Key to Red Button
+                        myQueue.put(qEvent(BUTTON_RED,thisEventType))
+                    elif event.key == pygame.K_4: # Maps #4 Key to Yellow Button
+                        myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))
 
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYUP:
-                if (event.key == BUTTON_YELLOW):
+                if (event.key == BUTTON_YELLOW):# TODO - what does this do?
                     lastFallTime = time.time()
                     lastMoveDownTime = time.time()
                     lastMoveSidewaysTime = time.time()
@@ -829,12 +842,10 @@ def drawClock(color):
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYDOWN:
-                if (event.key == 5):
-                    # Pausing the game
+                if event.key == BUTTON_GREEN:
                     return
             elif event.type == QKEYUP:
-                if (event.key == 7):
-                    # Pausing the game
+                if event.key == BUTTON_YELLOW:
                     return
         if not PI:
             checkForQuit()
@@ -877,13 +888,13 @@ def drawHalfImage(filename,offset):
 
 def clearScreen():
     if PI:
-        serport.write(bytearray([32]))
+        serport.write(bytearray([COMMANDBYTE_CLEARSCREEN]))
     else:
         DISPLAYSURF.fill(BGCOLOR)
 
 def updateScreen():
     if PI:
-        serport.write(bytearray([30]))
+        serport.write(bytearray([COMMANDBYTE_UPDATESCREEN]))
     else:
         pygame.display.update()
 
@@ -892,14 +903,14 @@ def drawPixel(x,y,color):
         return
     if PI:
         if (x>=0 and y>=0 and color >=0):
-            serport.write(bytearray([26,x,y,color]))
+            serport.write(bytearray([COMMANDBYTE_DRAWPIXELCOLOR,x,y,color]))
     else:
         pygame.draw.rect(DISPLAYSURF, COLORS[color], (x*SIZE+1, y*SIZE+1, SIZE-2, SIZE-2))
 
 def drawPixelRgb(x,y,r,g,b):
     if PI:
         if (x>=0 and y>=0):
-            serport.write(bytearray([24,x,y,r,g,b]))
+            serport.write(bytearray([COMMANDBYTE_DRAWPIXELRGB,x,y,r,g,b]))
     else:
         pygame.draw.rect(DISPLAYSURF, (r,g,b), (x*SIZE+1, y*SIZE+1, SIZE-2, SIZE-2))
 
@@ -925,9 +936,12 @@ def drawTetrisMAX7219(piece,offsetx,offsety):
             elif theTetrisFont[4*piece + x]&mask[y]:
                 drawScorePixel(offsetx+x,offsety+y,0)
 
-def drawScorePixel(x,y,on):
+def drawScorePixel(x,y,on): # TODO needs a new name; on needs to be removed
     if PI:
-        MAX2719device.pixel(31-x,y,on,False)
+        #MAX2719device.pixel(31-x,y,on,False) // BUG needs a replacement; on and off is missing
+        #this function seems to draw a single pixel only
+        with canvas(MAX2719device) as draw:
+            draw.point((31-x,y), fill= "white")
     else:
         pygame.draw.rect(DISPLAYSURF, COLORS[2], (64-2*x, 410+2*y,2,2))
 
