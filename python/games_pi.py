@@ -71,6 +71,11 @@ COLORS      = (BLUE,GREEN,RED,YELLOW,CYAN,MAGENTA,ORANGE)
 LIGHTCOLORS = (LIGHTBLUE, LIGHTGREEN, LIGHTRED, LIGHTYELLOW)
 #assert len(COLORS) == len(LIGHTCOLORS) # each color must have light color
 
+# constants defining the keys/buttons on the controller
+BUTTON_LEFT=0 
+BUTTON_RIGHT=1
+BUTTON_UP=2
+BUTTON_DOWN=3
 BUTTON_BLUE=4
 BUTTON_GREEN=5
 BUTTON_RED=6
@@ -614,7 +619,14 @@ def runTetrisGame():
     fallingPiece = getNewPiece()
     nextPiece = getNewPiece()
 
-
+    # tetris listens to the keys
+    # 0: Left --> move tile left
+    # 1: Right --> move tile right
+    # 2: Up --> rotate tile
+    # 3: Down --> move tile down
+    # 4: Button-Blue --> drop down
+    # 5: BUTTON_GREEN --> rotates in other direction
+    # 7: BUTTON_YELLOW --> ????
     while True: # game loop
 
         #if not myQueue.empty():
@@ -639,77 +651,72 @@ def runTetrisGame():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
                     print("Player pressed up!")
-                    myQueue.put(qEvent(2,QKEYDOWN)) # key 2 equals up
+                    myQueue.put(qEvent(BUTTON_UP,QKEYDOWN)) 
                 elif event.key == pygame.K_LEFT:
                     print("Player pressed left!")
-                    myQueue.put(qEvent(0,QKEYDOWN)) # key 0 equals left
+                    myQueue.put(qEvent(BUTTON_LEFT,QKEYDOWN))
                 elif event.key == pygame.K_DOWN:
                     print("Player pressed down!")
-                    myQueue.put(qEvent(3,QKEYDOWN)) # key 2 equals up
+                    myQueue.put(qEvent(BUTTON_DOWN,QKEYDOWN))
                 elif event.key == pygame.K_RIGHT:
                     print("Player pressed right!")
-                    myQueue.put(qEvent(1,QKEYDOWN)) # key 1 equals right
+                    myQueue.put(qEvent(BUTTON_RIGHT,QKEYDOWN))
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_UP:
-                    print("Player pressed up!")
-                    myQueue.put(qEvent(2,QKEYUP)) # key 2 equals up
+                    myQueue.put(qEvent(BUTTON_UP,QKEYUP))
                 elif event.key == pygame.K_LEFT:
-                    print("Player pressed left!")
-                    myQueue.put(qEvent(0,QKEYUP)) # key 0 equals left
+                    myQueue.put(qEvent(BUTTON_LEFT,QKEYUP))
                 elif event.key == pygame.K_DOWN:
-                    print("Player pressed down!")
-                    myQueue.put(qEvent(3,QKEYUP)) # key 2 equals up
+                    myQueue.put(qEvent(BUTTON_DOWN,QKEYUP))
                 elif event.key == pygame.K_RIGHT:
-                    print("Player pressed right!")
-                    myQueue.put(qEvent(1,QKEYUP)) # key 1 equals right
+                    myQueue.put(qEvent(BUTTON_RIGHT,QKEYUP))
 
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYUP:
-                if (event.key == 7):
+                if (event.key == BUTTON_YELLOW):
                     lastFallTime = time.time()
                     lastMoveDownTime = time.time()
                     lastMoveSidewaysTime = time.time()
-                elif (event.key == 0):
+                elif (event.key == BUTTON_LEFT):
                     movingLeft = False
-                elif (event.key == 1):
+                elif (event.key == BUTTON_RIGHT):
                     movingRight = False
-                elif (event.key == 3):
+                elif (event.key == BUTTON_DOWN):
                     movingDown = False
 
             elif event.type == QKEYDOWN:
                 # moving the piece sideways
-                if (event.key == 0) and isValidPosition(board, fallingPiece, adjX=-1):
+                if (event.key == BUTTON_LEFT) and isValidPosition(board, fallingPiece, adjX=-1):
                     fallingPiece['x'] -= 1
                     movingLeft = True
                     movingRight = False
                     lastMoveSidewaysTime = time.time()
-
-                elif (event.key == 1) and isValidPosition(board, fallingPiece, adjX=1):
+                elif (event.key == BUTTON_RIGHT) and isValidPosition(board, fallingPiece, adjX=1):
                     fallingPiece['x'] += 1
                     movingRight = True
                     movingLeft = False
                     lastMoveSidewaysTime = time.time()
 
                 # rotating the piece (if there is room to rotate)
-                elif (event.key == 2):
+                elif (event.key == BUTTON_UP):
                     fallingPiece['rotation'] = (fallingPiece['rotation'] + 1) % len(PIECES[fallingPiece['shape']])
                     if not isValidPosition(board, fallingPiece):
                         fallingPiece['rotation'] = (fallingPiece['rotation'] - 1) % len(PIECES[fallingPiece['shape']])
-                elif (event.key == 5): # rotate the other direction
+                elif (event.key == BUTTON_GREEN): # rotate the other direction
                     fallingPiece['rotation'] = (fallingPiece['rotation'] - 1) % len(PIECES[fallingPiece['shape']])
                     if not isValidPosition(board, fallingPiece):
                         fallingPiece['rotation'] = (fallingPiece['rotation'] + 1) % len(PIECES[fallingPiece['shape']])
 
                 # making the piece fall faster with the down key
-                elif (event.key == 3):
+                elif (event.key == BUTTON_DOWN):
                     movingDown = True
                     if isValidPosition(board, fallingPiece, adjY=1):
                         fallingPiece['y'] += 1
                     lastMoveDownTime = time.time()
 
                 # move the current piece all the way down
-                elif event.key == 4:
+                elif event.key == BUTTON_BLUE:
                     movingDown = False
                     movingLeft = False
                     movingRight = False
