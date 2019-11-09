@@ -22,7 +22,7 @@ if PI:
     from luma.core.render import canvas
     from luma.core.legacy.font import proportional, SINCLAIR_FONT, TINY_FONT, CP437_FONT
     from luma.core.legacy import show_message, text
-    #import evdev
+    import asyncio
     from evdev import InputDevice, categorize, ecodes # PS4 inputs
     from select import select
 
@@ -91,6 +91,11 @@ PS4BTN_X=304
 PS4BTN_CIRCLE=305
 PS4BTN_TRIANGLE=307
 PS4BTN_QUADRAT=308
+PS4BTN_R2=313
+PS4BTN_R1=311
+PS4BTN_L2=312
+PS4BTN_L1=310
+
 #PS4BTN_UP=308
 #PS4BTN_DOWN=308
 #PS4BTN_RIGHT=308
@@ -314,6 +319,58 @@ def client(ip, port, message):
     finally:
         sock.close()
 
+
+# async def helper(device):
+#     async for event in device.async_read_loop():
+#         if event.type == ecodes.EV_KEY:
+#             if event.value == 1: # button pressed
+#                 thisEventType = QKEYDOWN
+#             else:
+#                 thisEventType = QKEYUP
+#             if event.code == PS4BTN_CIRCLE:
+#                 myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+#             elif event.code == PS4BTN_QUADRAT:    
+#                 myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
+#             elif event.code == PS4BTN_TRIANGLE:    
+#                 myQueue.put(qEvent(BUTTON_UP,thisEventType))    
+#             elif event.code == PS4BTN_X:    
+#                 myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
+#             elif event.code == PS4BTN_L1:    
+#                 myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
+#             elif event.code == PS4BTN_L2:    
+#                 myQueue.put(qEvent(BUTTON_RED,thisEventType))  
+#             elif event.code == PS4BTN_R1:    
+#                 myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
+#             elif event.code == PS4BTN_R2:    
+#                 myQueue.put(qEvent(BUTTON_BLUE,thisEventType))  
+
+#checks for input of the gamepad, non blocking
+def pollGamepadInput():
+    r,w,x = select([gamepad], [], [])
+    for event in gamepad.read():
+    #for event in gamepad.read():
+        if event.type == ecodes.EV_KEY:
+            if event.value == 1: # button pressed
+                thisEventType = QKEYDOWN
+            else:
+                thisEventType = QKEYUP
+            if event.code == PS4BTN_CIRCLE:
+                myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+            elif event.code == PS4BTN_QUADRAT:    
+                myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
+            elif event.code == PS4BTN_TRIANGLE:    
+                myQueue.put(qEvent(BUTTON_UP,thisEventType))    
+            elif event.code == PS4BTN_X:    
+                myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
+            elif event.code == PS4BTN_L1:    
+                myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
+            elif event.code == PS4BTN_L2:    
+                myQueue.put(qEvent(BUTTON_RED,thisEventType))  
+            elif event.code == PS4BTN_R1:    
+                myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
+            elif event.code == PS4BTN_R2:    
+                myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
+  
 # main #
 
 def main():
@@ -322,6 +379,8 @@ def main():
     global a1_counter ,RUNNING
     a1_counter=0
     RUNNING=True
+    #loop = asyncio.get_event_loop()
+    #loop.run_until_complete(helper(gamepad))
 
     if not PI:
         pygame.init()
@@ -351,7 +410,7 @@ def main():
     server_thread.start()
     print("Server loop running in thread:", server_thread.name)
     clearScreen()
-    #drawClock(1)
+    drawClock(1)
 
     if PI:
         #MAX2719device.show_message("Let's play", font=proportional(CP437_FONT),delay=0.03)
@@ -676,22 +735,32 @@ def runTetrisGame():
 #another ugly hack to use the PS4 Input
 #        for event in gamepad.read_loop():
         #print("Here")
-        r,w,x = select([gamepad], [], [])
-        for event in gamepad.read():
-        #for event in gamepad.read():
-            if event.type == ecodes.EV_KEY:
-                if event.value == 1: # button pressed
-                    thisEventType = QKEYDOWN
-                else:
-                    thisEventType = QKEYUP
-                if event.code == PS4BTN_CIRCLE:
-                    myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-                elif event.code == PS4BTN_QUADRAT:    
-                    myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
-                elif event.code == PS4BTN_TRIANGLE:    
-                    myQueue.put(qEvent(BUTTON_UP,thisEventType))    
-                elif event.code == PS4BTN_X:    
-                    myQueue.put(qEvent(BUTTON_DOWN,thisEventType))    
+        pollGamepadInput()
+        # TODO create custom mapping here - we want to configure this in one place
+        # r,w,x = select([gamepad], [], [])
+        # for event in gamepad.read():
+        # #for event in gamepad.read():
+        #     if event.type == ecodes.EV_KEY:
+        #         if event.value == 1: # button pressed
+        #             thisEventType = QKEYDOWN
+        #         else:
+        #             thisEventType = QKEYUP
+        #         if event.code == PS4BTN_CIRCLE:
+        #             myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+        #         elif event.code == PS4BTN_QUADRAT:    
+        #             myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
+        #         elif event.code == PS4BTN_TRIANGLE:    
+        #             myQueue.put(qEvent(BUTTON_UP,thisEventType))    
+        #         elif event.code == PS4BTN_X:    
+        #             myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
+        #         elif event.code == PS4BTN_L1:    
+        #             myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
+        #         elif event.code == PS4BTN_L2:    
+        #             myQueue.put(qEvent(BUTTON_RED,thisEventType))  
+        #         elif event.code == PS4BTN_R1:    
+        #             myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
+        #         elif event.code == PS4BTN_R2:    
+        #             myQueue.put(qEvent(BUTTON_BLUE,thisEventType))  
 
 #ugly hack to get keyboard inputs directly without the simulation
 #add the pygame key events to the local key event queue
@@ -879,6 +948,7 @@ def drawClock(color):
     second= time.localtime().tm_sec
 
     while True:
+        pollGamepadInput()
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYDOWN:
