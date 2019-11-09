@@ -623,8 +623,8 @@ def runSnakeGame():
     apple = getRandomLocation()
 
     while True: # main game loop
-        if PI:
-            pollGamepadInput()
+        # if PI:
+        #     pollGamepadInput()
         if not myQueue.empty():
             event = myQueue.get()
             # take only one input per run
@@ -686,7 +686,8 @@ def runSnakeGame():
         clearScreen()
         drawWorm(wormCoords)
         drawApple(apple)
-        scoreText(score)
+        updateScoreDisplaySnake(score,MAX2719device)
+        #scoreText(score)
         updateScreen()
         time.sleep(.15)
 
@@ -1046,19 +1047,19 @@ def scrollText(text):
         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
         DISPLAYSURF.blit(titleSurf, titleRect)
 
-def scoreText(score):
-    _score=score
-    if _score>9999:
-        _score = 9999
-    if PI:
-        for i in range(0,4):
-            #Bug Canceled
-            #MAX2719device.letter(3-i, ord('0') + (_score%10)) # BUG no replacement for letter
-            _score //=10
-    else:
-        titleSurf, titleRect = makeTextObjs(str(_score), BASICFONT, TEXTCOLOR)
-        titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
-        DISPLAYSURF.blit(titleSurf, titleRect)
+# def scoreText(score):
+#     _score=score
+#     if _score>9999:
+#         _score = 9999
+#     if PI:
+#         for i in range(0,4):
+#             #Bug Canceled
+#             #MAX2719device.letter(3-i, ord('0') + (_score%10)) # BUG no replacement for letter
+#             _score //=10
+#     else:
+#         titleSurf, titleRect = makeTextObjs(str(_score), BASICFONT, TEXTCOLOR)
+#         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
+#         DISPLAYSURF.blit(titleSurf, titleRect)
 
 # inserts a single digit on the MAX7219 secondary display
 # digit - digit to insert
@@ -1114,18 +1115,29 @@ def scoreDisplayInsertNextPiece(nextPieceIndex,x,y,drawCanvas):
                 drawCanvas.point((x+column,y+row), fill= "white")
 
 
+def updateScoreDisplaySnake(score,dev):
+    _score=score
+    if _score>9999: # not more than 4 digits for score
+        _score = 9999
+    if PI:
+        with canvas(dev) as draw:
+            for digit in range(4):
+            # start with the smallest digit at the right side; 32 pixel display
+                scoreDisplayInsertDigit(_score%10,29-4*digit,0,draw)
+                _score //=10
+    else:
+        titleSurf, titleRect = makeTextObjs(str(_score), BASICFONT, TEXTCOLOR)
+        titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
+        DISPLAYSURF.blit(titleSurf, titleRect)
 
 def updateScoreDisplayTetris(score,level,nextPiece,dev):
-   
-    #if PI:
-    #    MAX2719device.clear()
     _score=score
     if _score>999999: # not more than 6 digits for score
         _score = 999999
     
     # score as 6 digit value
     with canvas(dev) as draw:
-        # one point per level?
+        # two point per level? TODO what is the maximum level???
         for i in range(level):# insert level bar; 6 pixel offset to display next piece
             draw.point((2*i+6,7), fill= "white")
             draw.point((2*i+7,7), fill= "white")    
