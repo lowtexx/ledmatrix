@@ -411,16 +411,17 @@ def main():
     print("Server loop running in thread:", server_thread.name)
     clearScreen()
     drawClock(1)
-
+    clearScreen()
     if PI:
         #MAX2719device.show_message("Let's play", font=proportional(CP437_FONT),delay=0.03)
         show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
-
+ 
     while True:
         clearScreen()
-        #drawSymbols()
-        runTetrisGame() # BUG run only the tetris game for now
+        drawSymbols()
         while myQueue.empty():
+            if PI:
+                pollGamepadInput()
             time.sleep(.1)
             a1_counter+=1
             updateScreen()
@@ -466,6 +467,8 @@ def runPongGame():
     lastUpperMoveSidewaysTime = time.time()
 
     while True: # main game loop for pong
+        if PI:
+            pollGamepadInput()
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYDOWN:
@@ -620,6 +623,8 @@ def runSnakeGame():
     apple = getRandomLocation()
 
     while True: # main game loop
+        if PI:
+            pollGamepadInput()
         if not myQueue.empty():
             event = myQueue.get()
             # take only one input per run
@@ -731,36 +736,9 @@ def runTetrisGame():
                 return # can't fit a new piece on the board, so game over
         if not PI:
             checkForQuit()
-
-#another ugly hack to use the PS4 Input
-#        for event in gamepad.read_loop():
-        #print("Here")
-        pollGamepadInput()
-        # TODO create custom mapping here - we want to configure this in one place
-        # r,w,x = select([gamepad], [], [])
-        # for event in gamepad.read():
-        # #for event in gamepad.read():
-        #     if event.type == ecodes.EV_KEY:
-        #         if event.value == 1: # button pressed
-        #             thisEventType = QKEYDOWN
-        #         else:
-        #             thisEventType = QKEYUP
-        #         if event.code == PS4BTN_CIRCLE:
-        #             myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-        #         elif event.code == PS4BTN_QUADRAT:    
-        #             myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
-        #         elif event.code == PS4BTN_TRIANGLE:    
-        #             myQueue.put(qEvent(BUTTON_UP,thisEventType))    
-        #         elif event.code == PS4BTN_X:    
-        #             myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
-        #         elif event.code == PS4BTN_L1:    
-        #             myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
-        #         elif event.code == PS4BTN_L2:    
-        #             myQueue.put(qEvent(BUTTON_RED,thisEventType))  
-        #         elif event.code == PS4BTN_R1:    
-        #             myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
-        #         elif event.code == PS4BTN_R2:    
-        #             myQueue.put(qEvent(BUTTON_BLUE,thisEventType))  
+        if PI:
+            pollGamepadInput()
+  
 
 #ugly hack to get keyboard inputs directly without the simulation
 #add the pygame key events to the local key event queue
