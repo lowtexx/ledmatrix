@@ -394,7 +394,7 @@ def main():
         #MAX2719device.brightness(1) TODO needs fix
         MAX2719device.clear()
         #MAX2719device.show_message("Waiting for controller...", font=proportional(CP437_FONT),delay=0.015)
-        show_message(MAX2719device, "Waiting for controller...", fill="white", font=proportional(CP437_FONT),scroll_delay=0.015)
+        #show_message(MAX2719device, "Waiting for controller...", fill="white", font=proportional(CP437_FONT),scroll_delay=0.015)
 
     # Port 0 means to select an arbitrary unused port
 
@@ -413,9 +413,8 @@ def main():
     clearScreen()
     drawClock(1)
     clearScreen()
-    if PI:
-        #MAX2719device.show_message("Let's play", font=proportional(CP437_FONT),delay=0.03)
-        show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
+    # if PI:
+    #     show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
  
     while True:
         clearScreen()
@@ -591,7 +590,8 @@ def runPongGame():
         drawBall(ballx,bally)
         drawBar(upperbarx,0)
         drawBar(lowerbarx,PIXEL_Y-1)
-        twoscoreText(score1,score2)
+        #twoscoreText(score1,score2)
+        updateScoreDisplayPong(score1,score2,MAX2719device)
         updateScreen()
 
         if (score1 == 9) or (score2 == 9):
@@ -1062,6 +1062,14 @@ def scrollText(text):
 #         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
 #         DISPLAYSURF.blit(titleSurf, titleRect)
 
+# inserts a colon on the MAX7219 secondary display
+# x - x coordinate on the display (0,0) is the left upper corner
+# y - y coordinate on the display (0,0) is the left upper corner
+# drawCancas - the MAX7219 draw canvas
+def scoreDisplayInsertColon(x,y,drawCanvas):
+    drawCanvas.point((x,y+1), fill= "white")
+    drawCanvas.point((x,y+3), fill= "white")
+
 # inserts a single digit on the MAX7219 secondary display
 # digit - digit to insert
 # x - x coordinate on the display (0,0) is the left upper corner
@@ -1149,6 +1157,29 @@ def updateScoreDisplayTetris(score,level,nextPiece,dev):
             _score //=10
         scoreDisplayInsertNextPiece(nextPiece,0,0,draw)
 
+#displays the score on the secondary screen for pong
+# score1 - score of player1 
+# score2 - score of player2
+def updateScoreDisplayPong(score1,score2,dev):
+    _score1=score1
+    if _score1>9: # not more than 1 digit for score
+        _score1 = 9
+    _score2=score2
+    if _score2>9: # not more than 1 digit for score
+        _score2 = 9
+    if PI:
+        with canvas(dev) as draw:
+            scoreDisplayInsertDigit(_score2,29,0,draw)
+            scoreDisplayInsertDigit(0,25,0,draw)
+            scoreDisplayInsertColon(22,0,draw)
+            scoreDisplayInsertDigit(_score1,17,0,draw)
+            scoreDisplayInsertDigit(0,13,0,draw)
+    else:
+        titleSurf, titleRect = makeTextObjs(str(_score1)+':'+str(_score2), BASICFONT, TEXTCOLOR)
+        titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
+        DISPLAYSURF.blit(titleSurf, titleRect)
+
+
 def scoreTetris(score,level,nextpiece):
     if PI:
         MAX2719device.clear()
@@ -1168,10 +1199,6 @@ def scoreTetris(score,level,nextpiece):
     # draw next piece
     drawTetrisMAX7219(nextpiece,27,0)
 
-# BUG no replacement for flush
-   # if PI:
-   #     MAX2719device.flush()
-
 def twoscoreText(score1,score2):
     _score1=score1
     _score2=score2
@@ -1185,7 +1212,6 @@ def twoscoreText(score1,score2):
         #MAX2719device.letter(1, ord(':'))
         #MAX2719device.letter(2, ord('0') + (_score2))
         #MAX2719device.letter(3, ord(' '))
-        print("TBD")
     else:
         titleSurf, titleRect = makeTextObjs(str(_score1)+':'+str(_score2), BASICFONT, TEXTCOLOR)
         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
