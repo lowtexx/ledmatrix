@@ -346,30 +346,31 @@ def client(ip, port, message):
 
 #checks for input of the gamepad, non blocking
 def pollGamepadInput():
-    r,w,x = select([gamepad], [], [])
-    for event in gamepad.read():
-    #for event in gamepad.read():
-        if event.type == ecodes.EV_KEY:
-            if event.value == 1: # button pressed
-                thisEventType = QKEYDOWN
-            else:
-                thisEventType = QKEYUP
-            if event.code == PS4BTN_CIRCLE:
-                myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-            elif event.code == PS4BTN_QUADRAT:    
-                myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
-            elif event.code == PS4BTN_TRIANGLE:    
-                myQueue.put(qEvent(BUTTON_UP,thisEventType))    
-            elif event.code == PS4BTN_X:    
-                myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
-            elif event.code == PS4BTN_L1:    
-                myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
-            elif event.code == PS4BTN_L2:    
-                myQueue.put(qEvent(BUTTON_RED,thisEventType))  
-            elif event.code == PS4BTN_R1:    
-                myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
-            elif event.code == PS4BTN_R2:    
-                myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
+    r,w,x = select([gamepad], [], [],0)
+    if r:
+        for event in gamepad.read():
+        #for event in gamepad.read():
+            if event.type == ecodes.EV_KEY:
+                if event.value == 1: # button pressed
+                    thisEventType = QKEYDOWN
+                else:
+                    thisEventType = QKEYUP
+                if event.code == PS4BTN_CIRCLE:
+                    myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+                elif event.code == PS4BTN_QUADRAT:    
+                    myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
+                elif event.code == PS4BTN_TRIANGLE:    
+                    myQueue.put(qEvent(BUTTON_UP,thisEventType))    
+                elif event.code == PS4BTN_X:    
+                    myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
+                elif event.code == PS4BTN_L1:    
+                    myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
+                elif event.code == PS4BTN_L2:    
+                    myQueue.put(qEvent(BUTTON_RED,thisEventType))  
+                elif event.code == PS4BTN_R1:    
+                    myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
+                elif event.code == PS4BTN_R2:    
+                    myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
   
 # main #
 
@@ -623,8 +624,8 @@ def runSnakeGame():
     apple = getRandomLocation()
 
     while True: # main game loop
-        # if PI:
-        #     pollGamepadInput()
+        if PI:
+            pollGamepadInput() # BUG this slows down the game/performance
         if not myQueue.empty():
             event = myQueue.get()
             # take only one input per run
