@@ -1292,7 +1292,6 @@ def scoreDisplayInsertDigit(number,x,y,drawCanvas):
             if((clock_font[3*number+column]>>row)&0x01==0x01):
                 drawCanvas.point((x+column,y+row), fill= "white")
 
-#BUG there seems to be a bug with mixed pices --> s vs u and L vs. J
 # inserts a the next tetris pice on the MAX7219 canvas
 # nextPieceIndex - index of next piece to insert
 # x - x coordinate on the display (0,0) is the left upper corner
@@ -1304,11 +1303,11 @@ def scoreDisplayInsertNextPiece(nextPieceIndex,x,y,drawCanvas):
     # each row is a symbol
     # each byte represents the vertical lines in binary
     theTetrisFont = [
-        0x78,0x78,0x1E,0x1E, #S
         0x1E,0x1E,0x78,0x78, #Z
+        0x78,0x78,0x1E,0x1E, #S
         0x00,0xFF,0xFF,0x00, #I
-        0x06,0x06,0x7E,0x7E, #J
         0x7E,0x7E,0x06,0x06, #L
+        0x06,0x06,0x7E,0x7E, #J
         0x3C,0x3C,0x3C,0x3C, #O
         0x7E,0x7E,0x18,0x18, #T
     ]   
