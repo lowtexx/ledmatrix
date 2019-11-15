@@ -274,7 +274,6 @@ RIGHT = 'right'
 HEAD = 0 # syntactic sugar: index of the worm's head
 
 # font clock #
-
 clock_font = [
   0x1F, 0x11, 0x1F,
   0x00, 0x00, 0x1F,
@@ -287,16 +286,6 @@ clock_font = [
   0x1F, 0x15, 0x1F,
   0x17, 0x15, 0x1F]
 
-theTetrisFont = [
-    0x78,0x78,0x1E,0x1E, #S
-    0x1E,0x1E,0x78,0x78, #Z
-    0x00,0xFF,0xFF,0x00, #I
-    0x06,0x06,0x7E,0x7E, #J
-    0x7E,0x7E,0x06,0x06, #L
-    0x3C,0x3C,0x3C,0x3C, #O
-    0x7E,0x7E,0x18,0x18, #T
-]
-
 # serial port pi #
 
 if PI:
@@ -304,9 +293,7 @@ if PI:
     spiPort = spi(port=0, device=0, gpio=noop())
     MAX2719device = max7219(spiPort, cascaded=MAX2719_DISPLAYS, block_orientation=MAX2719_ORIENTATION,
                     rotate=MAX2719_ROTATION or 0, blocks_arranged_in_reverse_order=False)
-    ##MAX2719device = led.matrix(cascaded=4)
     #creates object 'gamepad' to store the data
-    #you can call it whatever you like
     gamepad = InputDevice('/dev/input/event2')
     print(gamepad)
 else:
@@ -361,30 +348,6 @@ def client(ip, port, message):
         sock.close()
 
 
-# async def helper(device):
-#     async for event in device.async_read_loop():
-#         if event.type == ecodes.EV_KEY:
-#             if event.value == 1: # button pressed
-#                 thisEventType = QKEYDOWN
-#             else:
-#                 thisEventType = QKEYUP
-#             if event.code == PS4BTN_CIRCLE:
-#                 myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-#             elif event.code == PS4BTN_QUADRAT:    
-#                 myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
-#             elif event.code == PS4BTN_TRIANGLE:    
-#                 myQueue.put(qEvent(BUTTON_UP,thisEventType))    
-#             elif event.code == PS4BTN_X:    
-#                 myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
-#             elif event.code == PS4BTN_L1:    
-#                 myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
-#             elif event.code == PS4BTN_L2:    
-#                 myQueue.put(qEvent(BUTTON_RED,thisEventType))  
-#             elif event.code == PS4BTN_R1:    
-#                 myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
-#             elif event.code == PS4BTN_R2:    
-#                 myQueue.put(qEvent(BUTTON_BLUE,thisEventType))  
-
 #checks for input of the gamepad, non blocking
 def pollGamepadInput():
     r,w,x = select([gamepad], [], [],0)
@@ -399,22 +362,7 @@ def pollGamepadInput():
                 mappedEventCode = controllerEventMapper.get(event.code,-1)
                 if mappedEventCode != -1: # only insert when button has a mapping
                     myQueue.put(qEvent(mappedEventCode,thisEventType)) 
-                # if event.code == PS4BTN_CIRCLE:
-                #     myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-                # elif event.code == PS4BTN_QUADRAT:    
-                #     myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
-                # elif event.code == PS4BTN_TRIANGLE:    
-                #     myQueue.put(qEvent(BUTTON_UP,thisEventType))    
-                # elif event.code == PS4BTN_X:    
-                #     myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
-                # elif event.code == PS4BTN_L1:    
-                #     myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
-                # elif event.code == PS4BTN_L2:    
-                #     myQueue.put(qEvent(BUTTON_RED,thisEventType))  
-                # elif event.code == PS4BTN_R1:    
-                #     myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
-                # elif event.code == PS4BTN_R2:    
-                #     myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
+
 
 def pollKeyboardInput():
     for event in pygame.event.get():
@@ -429,23 +377,6 @@ def pollKeyboardInput():
             if mappedEventCode != -1: # only insert when button has a mapping
                 myQueue.put(qEvent(mappedEventCode,thisEventType)) 
 
-            # if event.key == pygame.K_UP:
-            #     myQueue.put(qEvent(BUTTON_UP,thisEventType)) 
-            # elif event.key == pygame.K_DOWN:
-            #     myQueue.put(qEvent(BUTTON_DOWN,thisEventType))
-            # elif event.key == pygame.K_LEFT:
-            #     myQueue.put(qEvent(BUTTON_LEFT,thisEventType))
-            # elif event.key == pygame.K_RIGHT:
-            #     myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-            # elif event.key == pygame.K_1: # Maps #1 Key to Blue Button 
-            #     myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
-            # elif event.key == pygame.K_2: # Maps #2 Key to Green Button 
-            #     myQueue.put(qEvent(BUTTON_GREEN,thisEventType))
-            # elif event.key == pygame.K_3: # Maps #3 Key to Red Button
-            #     myQueue.put(qEvent(BUTTON_RED,thisEventType))
-            # elif event.key == pygame.K_4: # Maps #4 Key to Yellow Button
-            #     myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))
-
 # main #
 SCREEN_CLOCK = 0
 SCREEN_TETRIS = 1
@@ -455,12 +386,8 @@ SCREEN_PONG = 3
 def main():
 
     global FPSCLOCK, DISPLAYSURF, BASICFONT, BIGFONT
-    #global a1_counter ,RUNNING
     global RUNNING
-    #a1_counter=0
     RUNNING=True
-    #loop = asyncio.get_event_loop()
-    #loop.run_until_complete(helper(gamepad))
 
     if not PI:
         pygame.init()
@@ -473,7 +400,6 @@ def main():
         #MAX2719device.brightness(1) TODO needs fix
         MAX2719device.clear()
         #MAX2719device.show_message("Waiting for controller...", font=proportional(CP437_FONT),delay=0.015)
-        #show_message(MAX2719device, "Waiting for controller...", fill="white", font=proportional(CP437_FONT),scroll_delay=0.015)
 
     # Port 0 means to select an arbitrary unused port
 
@@ -497,11 +423,7 @@ def main():
     # if PI:
     #     show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
  
- #todo display a game over screen and keep the points on the second screen
- #clear second screen when entering the game selection
     while True:       
-        #clearScreen()
-        #drawSymbols()
         updateStartScreen(currentScreen)
         while myQueue.empty():
             if PI:
@@ -536,17 +458,6 @@ def main():
                     drawGameOverScreen()
             elif (event.key == BUTTON_UP): # goto Clock
                 drawClock(COLORINDEX_GREEN)           
-        # if event.type == QKEYDOWN:
-        #     if (event.key == BUTTON_BLUE):
-        #         runSnakeGame()
-        #     elif (event.key == BUTTON_YELLOW):
-        #         runTetrisGame()
-        #     elif (event.key == BUTTON_RED):
-        #         runPongGame()
-        #     elif (event.key == BUTTON_GREEN):
-        #         drawClock(1)
-        
-
     terminate()
 
 # gaming main routines #
@@ -1034,26 +945,29 @@ def drawGameOverScreen():
         myQueue.get()
     clearScreen()
     #E
+    drawPixel(3,1,COLORINDEX_RED)
     drawPixel(4,1,COLORINDEX_RED)
     drawPixel(5,1,COLORINDEX_RED)
     drawPixel(6,1,COLORINDEX_RED)
-    drawPixel(4,2,COLORINDEX_RED)
+    drawPixel(3,2,COLORINDEX_RED)
+    drawPixel(3,3,COLORINDEX_RED)
     drawPixel(4,3,COLORINDEX_RED)
     drawPixel(5,3,COLORINDEX_RED)
-    drawPixel(4,4,COLORINDEX_RED)
+    drawPixel(3,4,COLORINDEX_RED)
+    drawPixel(3,5,COLORINDEX_RED)
     drawPixel(4,5,COLORINDEX_RED)
     drawPixel(5,5,COLORINDEX_RED)
     drawPixel(6,5,COLORINDEX_RED)
 
     #N
-    drawPixel(4,7,COLORINDEX_RED)
-    drawPixel(4,8,COLORINDEX_RED)
-    drawPixel(4,9,COLORINDEX_RED)
-    drawPixel(4,10,COLORINDEX_RED)
-    drawPixel(4,11,COLORINDEX_RED)
+    drawPixel(3,7,COLORINDEX_RED)
+    drawPixel(3,8,COLORINDEX_RED)
+    drawPixel(3,9,COLORINDEX_RED)
+    drawPixel(3,10,COLORINDEX_RED)
+    drawPixel(3,11,COLORINDEX_RED)
     
-    #drawPixel(5,8,COLORINDEX_RED)
-    drawPixel(5,10,COLORINDEX_RED)
+    drawPixel(4,8,COLORINDEX_RED)
+    drawPixel(5,9,COLORINDEX_RED)
 
     drawPixel(6,7,COLORINDEX_RED)
     drawPixel(6,8,COLORINDEX_RED)
@@ -1062,13 +976,15 @@ def drawGameOverScreen():
     drawPixel(6,11,COLORINDEX_RED)
 
     #D
-    drawPixel(4,13,COLORINDEX_RED)
-    drawPixel(4,14,COLORINDEX_RED)
-    drawPixel(4,15,COLORINDEX_RED)
-    drawPixel(4,16,COLORINDEX_RED)
-    drawPixel(4,17,COLORINDEX_RED)
+    drawPixel(3,13,COLORINDEX_RED)
+    drawPixel(3,14,COLORINDEX_RED)
+    drawPixel(3,15,COLORINDEX_RED)
+    drawPixel(3,16,COLORINDEX_RED)
+    drawPixel(3,17,COLORINDEX_RED)
     
+    drawPixel(4,13,COLORINDEX_RED)
     drawPixel(5,13,COLORINDEX_RED)
+    drawPixel(4,17,COLORINDEX_RED)
     drawPixel(5,17,COLORINDEX_RED)
 
     drawPixel(6,14,COLORINDEX_RED)
