@@ -87,19 +87,28 @@ BUTTON_YELLOW=7
 
 # Sony PS4 Controller Codes
 # using evdev now; should be better to use pygame.joystick, but could not get this to work in the headless setup
-PS4BTN_X=304
-PS4BTN_CIRCLE=305
-PS4BTN_TRIANGLE=307
-PS4BTN_QUADRAT=308
-PS4BTN_R2=313
-PS4BTN_R1=311
-PS4BTN_L2=312
-PS4BTN_L1=310
+#PS4BTN_X=304
+#PS4BTN_CIRCLE=305
+#PS4BTN_TRIANGLE=307
+#PS4BTN_QUADRAT=308
+#PS4BTN_R2=313
+#PS4BTN_R1=311
+#PS4BTN_L2=312
+#PS4BTN_L1=310
 
-#PS4BTN_UP=308
-#PS4BTN_DOWN=308
-#PS4BTN_RIGHT=308
-#PS4BTN_LEFT=308
+#maps the evdev button code to the in-game button event name
+# Ps4 Version --> maps an PS4 Button to the in-game event name
+# using predfined constants from evdev
+controllerEventMapper = {
+    BTN_SOUTH : BUTTON_DOWN,
+    BTN_EAST : BUTTON_RIGHT,
+    BTN_WEST : BUTTON_LEFT,
+    BTN_NORTH: BUTTON_UP,
+    BTN_TL : BUTTON_YELLOW,
+    BTN_TL2 : BUTTON_RED,
+    BTN_TR : BUTTON_GREEN,
+    BTN_TR2 : BUTTON_BLUE
+}
 
 #constants for the communication with the external display driver (Arduino) - only 4 commands are currently used
 #COMMANDBYTE_SETBRIGHTNESS = 22 # command to set the LED Brightness of the Main Display; Followed by 1 Byte: Brightness value
@@ -349,36 +358,40 @@ def pollGamepadInput():
     r,w,x = select([gamepad], [], [],0)
     if r:
         for event in gamepad.read():
-        #for event in gamepad.read():
             if event.type == ecodes.EV_KEY:
                 if event.value == 1: # button pressed
                     thisEventType = QKEYDOWN
                 else:
                     thisEventType = QKEYUP
-                if event.code == PS4BTN_CIRCLE:
-                    myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-                elif event.code == PS4BTN_QUADRAT:    
-                    myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
-                elif event.code == PS4BTN_TRIANGLE:    
-                    myQueue.put(qEvent(BUTTON_UP,thisEventType))    
-                elif event.code == PS4BTN_X:    
-                    myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
-                elif event.code == PS4BTN_L1:    
-                    myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
-                elif event.code == PS4BTN_L2:    
-                    myQueue.put(qEvent(BUTTON_RED,thisEventType))  
-                elif event.code == PS4BTN_R1:    
-                    myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
-                elif event.code == PS4BTN_R2:    
-                    myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
+                # try to get the correct key mapping
+                mappedEventCode = controllerEventMapper.get(event.Code,-1)
+                if mappedEventCode != -1: # only insert when button has a mapping
+                    myQueue.put(qEvent(mappedEventCode,thisEventType)) 
+                # if event.code == PS4BTN_CIRCLE:
+                #     myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+                # elif event.code == PS4BTN_QUADRAT:    
+                #     myQueue.put(qEvent(BUTTON_LEFT,thisEventType))    
+                # elif event.code == PS4BTN_TRIANGLE:    
+                #     myQueue.put(qEvent(BUTTON_UP,thisEventType))    
+                # elif event.code == PS4BTN_X:    
+                #     myQueue.put(qEvent(BUTTON_DOWN,thisEventType))   
+                # elif event.code == PS4BTN_L1:    
+                #     myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))  
+                # elif event.code == PS4BTN_L2:    
+                #     myQueue.put(qEvent(BUTTON_RED,thisEventType))  
+                # elif event.code == PS4BTN_R1:    
+                #     myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
+                # elif event.code == PS4BTN_R2:    
+                #     myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
   
 # main #
 
 def main():
 
     global FPSCLOCK, DISPLAYSURF, BASICFONT, BIGFONT
-    global a1_counter ,RUNNING
-    a1_counter=0
+    #global a1_counter ,RUNNING
+    global RUNNING
+    #a1_counter=0
     RUNNING=True
     #loop = asyncio.get_event_loop()
     #loop.run_until_complete(helper(gamepad))
@@ -411,11 +424,13 @@ def main():
     server_thread.start()
     print("Server loop running in thread:", server_thread.name)
     clearScreen()
-    drawClock(1)
+    drawClock(1,False)
     clearScreen()
     # if PI:
     #     show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
  
+ #todo display a game over screen and keep the points on the second screen
+ #clear second screen when entering the game selection
     while True:
         clearScreen()
         drawSymbols()
@@ -423,7 +438,7 @@ def main():
             if PI:
                 pollGamepadInput()
             time.sleep(.1)
-            a1_counter+=1
+            #a1_counter+=1
             updateScreen()
             if not PI:
                 checkForQuit()
@@ -861,7 +876,6 @@ def runTetrisGame():
         drawBoard(board)
         #scoreText(score)
         if score>oldscore:
-            #scoreTetris(score,level,PIECES_ORDER.get(nextPiece['shape']))
             updateScoreDisplayTetris(score,level,PIECES_ORDER.get(nextPiece['shape']),MAX2719device)
             oldscore = score
         if oldpiece!=PIECES_ORDER.get(nextPiece['shape']):
@@ -916,9 +930,10 @@ def drawSymbols():
     drawPixel(6,17,0)
     drawPixel(6,18,0)
 
-#draws a clock on the main screen
+#TODO separate drawing and control flow
+#draws a clock on the main screen with or without seconds
 #color - 
-def drawClock(color):
+def drawClock(color, withSeconds=True):
 
     if PI:
         MAX2719device.clear()
@@ -946,12 +961,18 @@ def drawClock(color):
         second= ltime.tm_sec
         clearScreen()
 
-        drawnumber(int(hour/10),2,1,color)
-        drawnumber(int(hour%10),6,1,color)
-        drawnumber(int(minute/10),2,8,color)
-        drawnumber(int(minute%10),6,8,color)
-        drawnumber(int(second/10),2,15,color)
-        drawnumber(int(second%10),6,15,color)
+        if(withSeconds):
+            drawnumber(int(hour/10),2,1,color)
+            drawnumber(int(hour%10),6,1,color)
+            drawnumber(int(minute/10),2,8,color)
+            drawnumber(int(minute%10),6,8,color)
+            drawnumber(int(second/10),2,15,color)
+            drawnumber(int(second%10),6,15,color)
+        else:
+            drawnumber(int(hour/10),2,5,color)
+            drawnumber(int(hour%10),6,5,color)
+            drawnumber(int(minute/10),2,12,color)
+            drawnumber(int(minute%10),6,12,color)
 
         updateScreen()
         time.sleep(.2)
@@ -1010,31 +1031,6 @@ def drawnumber(number,offsetx,offsety,color):
             if clock_font[3*number + x]&mask[y]:
                 drawPixel(offsetx+x,offsety+y,color)
 
-def drawnumberMAX7219(number,offsetx,offsety):
-    for x in range(0,3):
-        for y in range(0,5):
-            if clock_font[3*number+2- x]&mask[y]:
-                drawScorePixel(offsetx+x,offsety+y,1)
-            elif clock_font[3*number+2- x]&mask[y]:
-                drawScorePixel(offsetx+x,offsety+y,0)
-
-def drawTetrisMAX7219(piece,offsetx,offsety):
-    for x in range(0,4):
-        for y in range(0,8):
-            if theTetrisFont[4*piece + x]&mask[y]:
-                drawScorePixel(offsetx+x,offsety+y,1)
-            elif theTetrisFont[4*piece + x]&mask[y]:
-                drawScorePixel(offsetx+x,offsety+y,0)
-
-def drawScorePixel(x,y,on): # TODO needs a new name; on needs to be removed
-    if PI:
-        #MAX2719device.pixel(31-x,y,on,False) // BUG needs a replacement; on and off is missing
-        #this function seems to draw a single pixel only
-        with canvas(MAX2719device) as draw:
-            draw.point((31-x,y), fill= "white")
-    else:
-        pygame.draw.rect(DISPLAYSURF, COLORS[2], (64-2*x, 410+2*y,2,2))
-
 def makeTextObjs(text, font, color):
     surf = font.render(text, True, color)
     return surf, surf.get_rect()
@@ -1048,28 +1044,15 @@ def scrollText(text):
         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
         DISPLAYSURF.blit(titleSurf, titleRect)
 
-# def scoreText(score):
-#     _score=score
-#     if _score>9999:
-#         _score = 9999
-#     if PI:
-#         for i in range(0,4):
-#             #Bug Canceled
-#             #MAX2719device.letter(3-i, ord('0') + (_score%10)) # BUG no replacement for letter
-#             _score //=10
-#     else:
-#         titleSurf, titleRect = makeTextObjs(str(_score), BASICFONT, TEXTCOLOR)
-#         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
-#         DISPLAYSURF.blit(titleSurf, titleRect)
-
 # inserts a colon on the MAX7219 secondary display
 # x - x coordinate on the display (0,0) is the left upper corner
 # y - y coordinate on the display (0,0) is the left upper corner
-# drawCancas - the MAX7219 draw canvas
+# drawCanvas - the MAX7219 draw canvas
 def scoreDisplayInsertColon(x,y,drawCanvas):
     drawCanvas.point((x,y+1), fill= "white")
     drawCanvas.point((x,y+3), fill= "white")
 
+#TODO provide a pygame version of display
 # inserts a single digit on the MAX7219 secondary display
 # digit - digit to insert
 # x - x coordinate on the display (0,0) is the left upper corner
@@ -1098,11 +1081,11 @@ def scoreDisplayInsertDigit(number,x,y,drawCanvas):
                 drawCanvas.point((x+column,y+row), fill= "white")
 
 #BUG there seems to be a bug with mixed pices --> s vs u and L vs. J
-# inserts a the next tetri pice on the MAX7219 secondary display
+# inserts a the next tetris pice on the MAX7219 canvas
 # nextPieceIndex - index of next piece to insert
 # x - x coordinate on the display (0,0) is the left upper corner
 # y - y coordinate on the display (0,0) is the left upper corner
-# drawCancas - the MAX7219 draw canvas
+# drawCanvas - the MAX7219 draw canvas
 def scoreDisplayInsertNextPiece(nextPieceIndex,x,y,drawCanvas):
     # tetris clock #
     # 4x8 point font
@@ -1123,7 +1106,9 @@ def scoreDisplayInsertNextPiece(nextPieceIndex,x,y,drawCanvas):
             if((theTetrisFont[4*nextPieceIndex+column]>>row)&0x01==0x01):
                 drawCanvas.point((x+column,y+row), fill= "white")
 
-
+# displays the score on the secondary screen for Snake
+# score - score of player 
+# dev - the MAX2719 device 
 def updateScoreDisplaySnake(score,dev):
     _score=score
     if _score>9999: # not more than 4 digits for score
@@ -1139,6 +1124,11 @@ def updateScoreDisplaySnake(score,dev):
         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
         DISPLAYSURF.blit(titleSurf, titleRect)
 
+# displays the score on the secondary screen for Tetris
+# score - score of player 
+# level - current level
+# nextPiece - index of next piece
+# dev - the MAX2719 device 
 def updateScoreDisplayTetris(score,level,nextPiece,dev):
     _score=score
     if _score>999999: # not more than 6 digits for score
@@ -1153,13 +1143,13 @@ def updateScoreDisplayTetris(score,level,nextPiece,dev):
         for digit in range(6):
             # start with the smallest digit at the right side; 32 pixel display
             scoreDisplayInsertDigit(_score%10,29-4*digit,0,draw)
-            #drawnumberMAX7219(_score%10,digit*4,0)
             _score //=10
         scoreDisplayInsertNextPiece(nextPiece,0,0,draw)
 
 #displays the score on the secondary screen for pong
 # score1 - score of player1 
 # score2 - score of player2
+# dev - the MAX2719 device 
 def updateScoreDisplayPong(score1,score2,dev):
     _score1=score1
     if _score1>9: # not more than 1 digit for score
@@ -1179,43 +1169,6 @@ def updateScoreDisplayPong(score1,score2,dev):
         titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
         DISPLAYSURF.blit(titleSurf, titleRect)
 
-
-def scoreTetris(score,level,nextpiece):
-    if PI:
-        MAX2719device.clear()
-    _score=score
-    if _score>999999:
-        _score = 999999
-
-    # one point per level
-    for i in range(0,level):
-        drawScorePixel(i*2,7,1)
-
-    # score as 6 digit value
-    for i in range(0,6):
-        drawnumberMAX7219(_score%10,i*4,0)
-        _score //=10
-
-    # draw next piece
-    drawTetrisMAX7219(nextpiece,27,0)
-
-def twoscoreText(score1,score2):
-    _score1=score1
-    _score2=score2
-    if _score1>9:
-        _score1 = 9
-    if _score2>9:
-        _score2 = 9
-    if PI:
-        #BUG --> needs replacment for letter
-        #MAX2719device.letter(0, ord('0') + (_score1))
-        #MAX2719device.letter(1, ord(':'))
-        #MAX2719device.letter(2, ord('0') + (_score2))
-        #MAX2719device.letter(3, ord(' '))
-    else:
-        titleSurf, titleRect = makeTextObjs(str(_score1)+':'+str(_score2), BASICFONT, TEXTCOLOR)
-        titleRect.center = (int(WINDOWWIDTH / 2) - 3, int(WINDOWHEIGHT / 2) - 3)
-        DISPLAYSURF.blit(titleSurf, titleRect)
 
 # program flow #
 
