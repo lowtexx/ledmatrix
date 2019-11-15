@@ -9,10 +9,9 @@
 
 import random, time, sys, socket, threading, queue, socketserver, os
 from PIL import Image # tested with pillow-6.2.1
-from evdev import InputDevice, categorize, ecodes # gamepad input
 
 # If Pi = False the script runs in simulation mode using pygame lib
-PI = True
+PI = False
 import pygame
 from pygame.locals import *
 if PI:
@@ -99,15 +98,27 @@ BUTTON_YELLOW=7
 #maps the evdev button code to the in-game button event name
 # Ps4 Version --> maps an PS4 Button to the in-game event name
 # using predfined constants from evdev
-controllerEventMapper = {
-    BTN_SOUTH : BUTTON_DOWN,
-    BTN_EAST : BUTTON_RIGHT,
-    BTN_WEST : BUTTON_LEFT,
-    BTN_NORTH: BUTTON_UP,
-    BTN_TL : BUTTON_YELLOW,
-    BTN_TL2 : BUTTON_RED,
-    BTN_TR : BUTTON_GREEN,
-    BTN_TR2 : BUTTON_BLUE
+if PI:
+    controllerEventMapper = {
+        BTN_SOUTH : BUTTON_DOWN,
+        BTN_EAST : BUTTON_RIGHT,
+        BTN_WEST : BUTTON_LEFT,
+        BTN_NORTH: BUTTON_UP,
+        BTN_TL : BUTTON_YELLOW,
+        BTN_TL2 : BUTTON_RED,
+        BTN_TR : BUTTON_GREEN,
+        BTN_TR2 : BUTTON_BLUE
+    }
+
+keyboardEventMapper = {
+    pygame.K_DOWN : BUTTON_DOWN,
+    pygame.K_RIGHT : BUTTON_RIGHT,
+    pygame.K_LEFT : BUTTON_LEFT,
+    pygame.K_UP: BUTTON_UP,
+    pygame.K_4 : BUTTON_YELLOW,
+    pygame.K_3 : BUTTON_RED,
+    pygame.K_2 : BUTTON_GREEN,
+    pygame.K_1 : BUTTON_BLUE
 }
 
 #constants for the communication with the external display driver (Arduino) - only 4 commands are currently used
@@ -118,6 +129,16 @@ COMMANDBYTE_DRAWPIXELCOLOR = 26 # command to set a pixel to a RGB color, selecte
 COMMANDBYTE_UPDATESCREEN = 30 # command to update the screen
 COMMANDBYTE_CLEARSCREEN  = 32 # command to clear the screen
 
+# constants for the colors in the arduino matrix
+COLORINDEX_BLUE = 0
+COLORINDEX_GREEN = 1
+COLORINDEX_RED = 2
+COLORINDEX_YELLOW = 3
+COLORINDEX_CYAN = 4
+COLORINDEX_MAGENTA = 5
+COLORINDEX_ORANGE = 6
+COLORINDEX_WHITE = 7
+COLORINDEX_BLACK = 8
 
 TEMPLATEWIDTH = 5
 TEMPLATEHEIGHT = 5
@@ -279,6 +300,8 @@ if PI:
     #you can call it whatever you like
     gamepad = InputDevice('/dev/input/event2')
     print(gamepad)
+else:
+    MAX2719device = 0
 
 # key server for controller #
 
@@ -383,8 +406,42 @@ def pollGamepadInput():
                 #     myQueue.put(qEvent(BUTTON_GREEN,thisEventType))  
                 # elif event.code == PS4BTN_R2:    
                 #     myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
-  
+
+def pollKeyboardInput():
+    for event in pygame.event.get():
+    #if event.type == pygame.QUIT:  # Usually wise to be able to close your program.
+    #    raise SystemExit
+        if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+            if event.type == pygame.KEYDOWN:
+                thisEventType = QKEYDOWN
+            else:
+                thisEventType = QKEYUP
+            mappedEventCode = keyboardEventMapper.get(event.key,-1)
+            if mappedEventCode != -1: # only insert when button has a mapping
+                myQueue.put(qEvent(mappedEventCode,thisEventType)) 
+
+            # if event.key == pygame.K_UP:
+            #     myQueue.put(qEvent(BUTTON_UP,thisEventType)) 
+            # elif event.key == pygame.K_DOWN:
+            #     myQueue.put(qEvent(BUTTON_DOWN,thisEventType))
+            # elif event.key == pygame.K_LEFT:
+            #     myQueue.put(qEvent(BUTTON_LEFT,thisEventType))
+            # elif event.key == pygame.K_RIGHT:
+            #     myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+            # elif event.key == pygame.K_1: # Maps #1 Key to Blue Button 
+            #     myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
+            # elif event.key == pygame.K_2: # Maps #2 Key to Green Button 
+            #     myQueue.put(qEvent(BUTTON_GREEN,thisEventType))
+            # elif event.key == pygame.K_3: # Maps #3 Key to Red Button
+            #     myQueue.put(qEvent(BUTTON_RED,thisEventType))
+            # elif event.key == pygame.K_4: # Maps #4 Key to Yellow Button
+            #     myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))
+
 # main #
+SCREEN_CLOCK = 0
+SCREEN_TETRIS = 1
+SCREEN_SNAKE = 2
+SCREEN_PONG = 3
 
 def main():
 
@@ -423,37 +480,59 @@ def main():
     server_thread.daemon = True
     server_thread.start()
     print("Server loop running in thread:", server_thread.name)
+    currentScreen = SCREEN_TETRIS
+    #nextScreen = -1
     clearScreen()
-    drawClock(1,False)
+    drawClock(COLORINDEX_GREEN,False)
     clearScreen()
     # if PI:
     #     show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
  
  #todo display a game over screen and keep the points on the second screen
  #clear second screen when entering the game selection
-    while True:
-        clearScreen()
-        drawSymbols()
+    while True:       
+        #clearScreen()
+        #drawSymbols()
+        updateStartScreen(currentScreen)
         while myQueue.empty():
             if PI:
                 pollGamepadInput()
+            else:
+                pollKeyboardInput()
             time.sleep(.1)
-            #a1_counter+=1
             updateScreen()
             if not PI:
                 checkForQuit()
             time.sleep(.1)
-
+# use the down key as enter and right, left to toggle between start screens
         event = myQueue.get()
         if event.type == QKEYDOWN:
-            if (event.key == BUTTON_BLUE):
-                runSnakeGame()
-            elif (event.key == BUTTON_YELLOW):
-                runTetrisGame()
-            elif (event.key == BUTTON_RED):
-                runPongGame()
-            elif (event.key == BUTTON_GREEN):
-                drawClock(1)
+            if (event.key == BUTTON_LEFT): # goto previous start screen
+                currentScreen-=1
+                if(currentScreen==0):
+                    currentScreen=3
+            elif (event.key == BUTTON_RIGHT): # goto next start screen
+                currentScreen+=1
+                if(currentScreen==4):
+                    currentScreen=1
+            elif (event.key == BUTTON_DOWN): # start a game
+                if(currentScreen==SCREEN_TETRIS):
+                    runTetrisGame()
+                elif(currentScreen==SCREEN_PONG):
+                    runPongGame()
+                elif(currentScreen==SCREEN_SNAKE):
+                    runSnakeGame()
+            elif (event.key == BUTTON_UP): # goto Clock
+                drawClock(COLORINDEX_GREEN)           
+        # if event.type == QKEYDOWN:
+        #     if (event.key == BUTTON_BLUE):
+        #         runSnakeGame()
+        #     elif (event.key == BUTTON_YELLOW):
+        #         runTetrisGame()
+        #     elif (event.key == BUTTON_RED):
+        #         runPongGame()
+        #     elif (event.key == BUTTON_GREEN):
+        #         drawClock(1)
         
 
     terminate()
@@ -484,6 +563,8 @@ def runPongGame():
     while True: # main game loop for pong
         if PI:
             pollGamepadInput()
+        else:
+            pollKeyboardInput()
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYDOWN:
@@ -640,7 +721,9 @@ def runSnakeGame():
 
     while True: # main game loop
         if PI:
-            pollGamepadInput() # BUG this slows down the game/performance
+            pollGamepadInput()
+        else:
+            pollKeyboardInput()
         if not myQueue.empty():
             event = myQueue.get()
             # take only one input per run
@@ -755,36 +838,38 @@ def runTetrisGame():
             checkForQuit()
         if PI:
             pollGamepadInput()
+        else:
+            pollKeyboardInput()
   
 
 #ugly hack to get keyboard inputs directly without the simulation
 #add the pygame key events to the local key event queue
 #TODO this needs to be done globally
-        if not PI:
-            for event in pygame.event.get():
-            #if event.type == pygame.QUIT:  # Usually wise to be able to close your program.
-            #    raise SystemExit
-                if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
-                    if event.type == pygame.KEYDOWN:
-                        thisEventType = QKEYDOWN
-                    else:
-                        thisEventType = QKEYUP
-                    if event.key == pygame.K_UP:
-                        myQueue.put(qEvent(BUTTON_UP,thisEventType)) 
-                    elif event.key == pygame.K_DOWN:
-                        myQueue.put(qEvent(BUTTON_DOWN,thisEventType))
-                    elif event.key == pygame.K_LEFT:
-                        myQueue.put(qEvent(BUTTON_LEFT,thisEventType))
-                    elif event.key == pygame.K_RIGHT:
-                        myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-                    elif event.key == pygame.K_1: # Maps #1 Key to Blue Button 
-                        myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
-                    elif event.key == pygame.K_2: # Maps #2 Key to Green Button 
-                        myQueue.put(qEvent(BUTTON_GREEN,thisEventType))
-                    elif event.key == pygame.K_3: # Maps #3 Key to Red Button
-                        myQueue.put(qEvent(BUTTON_RED,thisEventType))
-                    elif event.key == pygame.K_4: # Maps #4 Key to Yellow Button
-                        myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))
+        # if not PI:
+        #     for event in pygame.event.get():
+        #     #if event.type == pygame.QUIT:  # Usually wise to be able to close your program.
+        #     #    raise SystemExit
+        #         if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+        #             if event.type == pygame.KEYDOWN:
+        #                 thisEventType = QKEYDOWN
+        #             else:
+        #                 thisEventType = QKEYUP
+        #             if event.key == pygame.K_UP:
+        #                 myQueue.put(qEvent(BUTTON_UP,thisEventType)) 
+        #             elif event.key == pygame.K_DOWN:
+        #                 myQueue.put(qEvent(BUTTON_DOWN,thisEventType))
+        #             elif event.key == pygame.K_LEFT:
+        #                 myQueue.put(qEvent(BUTTON_LEFT,thisEventType))
+        #             elif event.key == pygame.K_RIGHT:
+        #                 myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
+        #             elif event.key == pygame.K_1: # Maps #1 Key to Blue Button 
+        #                 myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
+        #             elif event.key == pygame.K_2: # Maps #2 Key to Green Button 
+        #                 myQueue.put(qEvent(BUTTON_GREEN,thisEventType))
+        #             elif event.key == pygame.K_3: # Maps #3 Key to Red Button
+        #                 myQueue.put(qEvent(BUTTON_RED,thisEventType))
+        #             elif event.key == pygame.K_4: # Maps #4 Key to Yellow Button
+        #                 myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))
 
         while not myQueue.empty():
             event = myQueue.get()
@@ -890,6 +975,56 @@ def runTetrisGame():
         #FPSCLOCK.tick(FPS)
         time.sleep(.05)
 
+def drawStartScreenTetris():
+    drawPixel(8,15,COLORINDEX_RED)
+    drawPixel(8,16,COLORINDEX_RED)
+    drawPixel(8,17,COLORINDEX_RED)
+    drawPixel(8,18,COLORINDEX_RED)
+
+    drawPixel(6,18,COLORINDEX_BLUE)
+    drawPixel(7,16,COLORINDEX_BLUE)
+    drawPixel(7,17,COLORINDEX_BLUE)
+    drawPixel(7,18,COLORINDEX_BLUE)
+
+    drawPixel(4,17,COLORINDEX_YELLOW)
+    drawPixel(3,18,COLORINDEX_YELLOW)
+    drawPixel(4,18,COLORINDEX_YELLOW)
+    drawPixel(5,18,COLORINDEX_YELLOW)
+
+    drawPixel(2,18,COLORINDEX_GREEN)
+    drawPixel(2,17,COLORINDEX_GREEN)
+    drawPixel(3,17,COLORINDEX_GREEN)
+    drawPixel(3,16,COLORINDEX_GREEN)
+
+
+
+
+def drawStartScreenPong():
+    drawPixel(4,8,1)
+    drawPixel(5,8,1)
+    drawPixel(6,8,1)
+    drawPixel(6,11,0)
+    drawPixel(5,13,1)
+    drawPixel(6,13,1)
+    drawPixel(7,13,1)
+
+def drawStartScreenSnake():
+    drawPixel(5,3,2)
+    drawPixel(6,3,1)
+    drawPixel(7,3,1)
+    drawPixel(8,3,1)
+    drawPixel(8,2,1)
+    drawPixel(8,1,1)
+
+def updateStartScreen(currentScreen):
+    clearScreen()
+    if currentScreen==SCREEN_TETRIS:
+        drawStartScreenTetris()
+    elif currentScreen==SCREEN_PONG:
+        drawStartScreenPong()
+    elif currentScreen==SCREEN_SNAKE:
+        drawStartScreenSnake()
+
 def drawSymbols():
      #snbake symbol
     drawPixel(1,2,0)
@@ -917,7 +1052,6 @@ def drawSymbols():
     drawPixel(7,9,1)
     drawPixel(6,11,0)
 
-
     #tetris symbol
     drawPixel(1,16,3)
     drawPixel(2,16,3)
@@ -934,7 +1068,6 @@ def drawSymbols():
 #draws a clock on the main screen with or without seconds
 #color - 
 def drawClock(color, withSeconds=True):
-
     if PI:
         MAX2719device.clear()
 
@@ -943,15 +1076,18 @@ def drawClock(color, withSeconds=True):
     second= time.localtime().tm_sec
 
     while True:
-        pollGamepadInput()
+        if PI:
+            pollGamepadInput()
+        else:
+            pollKeyboardInput()
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYDOWN:
-                if event.key == BUTTON_GREEN:
-                    return
-            elif event.type == QKEYUP:
-                if event.key == BUTTON_YELLOW:
-                    return
+                #if event.key == BUTTON_GREEN:
+                return
+            # elif event.type == QKEYUP:
+            #     if event.key == BUTTON_YELLOW:
+            #         return
         if not PI:
             checkForQuit()
 
@@ -969,10 +1105,10 @@ def drawClock(color, withSeconds=True):
             drawnumber(int(second/10),2,15,color)
             drawnumber(int(second%10),6,15,color)
         else:
-            drawnumber(int(hour/10),2,5,color)
-            drawnumber(int(hour%10),6,5,color)
-            drawnumber(int(minute/10),2,12,color)
-            drawnumber(int(minute%10),6,12,color)
+            drawnumber(int(hour/10),2,3,color)
+            drawnumber(int(hour%10),6,3,color)
+            drawnumber(int(minute/10),2,10,color)
+            drawnumber(int(minute%10),6,10,color)
 
         updateScreen()
         time.sleep(.2)
@@ -1135,16 +1271,17 @@ def updateScoreDisplayTetris(score,level,nextPiece,dev):
         _score = 999999
     
     # score as 6 digit value
-    with canvas(dev) as draw:
-        # two point per level? TODO what is the maximum level???
-        for i in range(level):# insert level bar; 6 pixel offset to display next piece
-            draw.point((2*i+6,7), fill= "white")
-            draw.point((2*i+7,7), fill= "white")    
-        for digit in range(6):
-            # start with the smallest digit at the right side; 32 pixel display
-            scoreDisplayInsertDigit(_score%10,29-4*digit,0,draw)
-            _score //=10
-        scoreDisplayInsertNextPiece(nextPiece,0,0,draw)
+    if PI:
+        with canvas(dev) as draw:
+            # two point per level? TODO what is the maximum level???
+            for i in range(level):# insert level bar; 6 pixel offset to display next piece
+                draw.point((2*i+6,7), fill= "white")
+                draw.point((2*i+7,7), fill= "white")    
+            for digit in range(6):
+                # start with the smallest digit at the right side; 32 pixel display
+                scoreDisplayInsertDigit(_score%10,29-4*digit,0,draw)
+                _score //=10
+            scoreDisplayInsertNextPiece(nextPiece,0,0,draw)
 
 #displays the score on the secondary screen for pong
 # score1 - score of player1 
