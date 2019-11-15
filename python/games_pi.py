@@ -11,7 +11,7 @@ import random, time, sys, socket, threading, queue, socketserver, os
 from PIL import Image # tested with pillow-6.2.1
 
 # If Pi = False the script runs in simulation mode using pygame lib
-PI = False
+PI = True
 import pygame
 from pygame.locals import *
 if PI:
@@ -86,30 +86,39 @@ BUTTON_YELLOW=7
 
 # Sony PS4 Controller Codes
 # using evdev now; should be better to use pygame.joystick, but could not get this to work in the headless setup
-#PS4BTN_X=304
-#PS4BTN_CIRCLE=305
-#PS4BTN_TRIANGLE=307
-#PS4BTN_QUADRAT=308
-#PS4BTN_R2=313
-#PS4BTN_R1=311
-#PS4BTN_L2=312
-#PS4BTN_L1=310
+PS4BTN_X=304
+PS4BTN_CIRCLE=305
+PS4BTN_TRIANGLE=307
+PS4BTN_QUADRAT=308
+PS4BTN_R2=313
+PS4BTN_R1=311
+PS4BTN_L2=312
+PS4BTN_L1=310
 
 #maps the evdev button code to the in-game button event name
 # Ps4 Version --> maps an PS4 Button to the in-game event name
 # using predfined constants from evdev
 if PI:
+    # controllerEventMapper = {
+    #     BTN_SOUTH : BUTTON_DOWN,
+    #     BTN_EAST : BUTTON_RIGHT,
+    #     BTN_WEST : BUTTON_LEFT,
+    #     BTN_NORTH: BUTTON_UP,
+    #     BTN_TL : BUTTON_YELLOW,
+    #     BTN_TL2 : BUTTON_RED,
+    #     BTN_TR : BUTTON_GREEN,
+    #     BTN_TR2 : BUTTON_BLUE
+    # }
     controllerEventMapper = {
-        BTN_SOUTH : BUTTON_DOWN,
-        BTN_EAST : BUTTON_RIGHT,
-        BTN_WEST : BUTTON_LEFT,
-        BTN_NORTH: BUTTON_UP,
-        BTN_TL : BUTTON_YELLOW,
-        BTN_TL2 : BUTTON_RED,
-        BTN_TR : BUTTON_GREEN,
-        BTN_TR2 : BUTTON_BLUE
+        PS4BTN_X : BUTTON_DOWN,
+        PS4BTN_CIRCLE : BUTTON_RIGHT,
+        PS4BTN_QUADRAT : BUTTON_LEFT,
+        PS4BTN_TRIANGLE : BUTTON_UP,
+        PS4BTN_L1 : BUTTON_YELLOW,
+        PS4BTN_L2 : BUTTON_RED,
+        PS4BTN_R1 : BUTTON_GREEN,
+        PS4BTN_R2 : BUTTON_BLUE
     }
-
 keyboardEventMapper = {
     pygame.K_DOWN : BUTTON_DOWN,
     pygame.K_RIGHT : BUTTON_RIGHT,
@@ -387,7 +396,7 @@ def pollGamepadInput():
                 else:
                     thisEventType = QKEYUP
                 # try to get the correct key mapping
-                mappedEventCode = controllerEventMapper.get(event.Code,-1)
+                mappedEventCode = controllerEventMapper.get(event.code,-1)
                 if mappedEventCode != -1: # only insert when button has a mapping
                     myQueue.put(qEvent(mappedEventCode,thisEventType)) 
                 # if event.code == PS4BTN_CIRCLE:
