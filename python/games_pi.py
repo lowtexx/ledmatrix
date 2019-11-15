@@ -527,10 +527,13 @@ def main():
             elif (event.key == BUTTON_DOWN): # start a game
                 if(currentScreen==SCREEN_TETRIS):
                     runTetrisGame()
+                    drawGameOverScreen()
                 elif(currentScreen==SCREEN_PONG):
                     runPongGame()
+                    drawGameOverScreen()
                 elif(currentScreen==SCREEN_SNAKE):
                     runSnakeGame()
+                    drawGameOverScreen()
             elif (event.key == BUTTON_UP): # goto Clock
                 drawClock(COLORINDEX_GREEN)           
         # if event.type == QKEYDOWN:
@@ -1009,21 +1012,85 @@ def drawStartScreenTetris():
 
 
 def drawStartScreenPong():
-    drawPixel(4,8,1)
-    drawPixel(5,8,1)
-    drawPixel(6,8,1)
-    drawPixel(6,11,0)
-    drawPixel(5,13,1)
-    drawPixel(6,13,1)
-    drawPixel(7,13,1)
+    drawPixel(4,8,COLORINDEX_GREEN)
+    drawPixel(5,8,COLORINDEX_GREEN)
+    drawPixel(6,8,COLORINDEX_GREEN)
+    drawPixel(6,11,COLORINDEX_BLUE)
+    drawPixel(5,13,COLORINDEX_GREEN)
+    drawPixel(6,13,COLORINDEX_GREEN)
+    drawPixel(7,13,COLORINDEX_GREEN)
 
 def drawStartScreenSnake():
-    drawPixel(5,3,2)
-    drawPixel(6,3,1)
-    drawPixel(7,3,1)
-    drawPixel(8,3,1)
-    drawPixel(8,2,1)
-    drawPixel(8,1,1)
+    drawPixel(5,3,COLORINDEX_RED)
+    drawPixel(6,3,COLORINDEX_GREEN)
+    drawPixel(7,3,COLORINDEX_GREEN)
+    drawPixel(8,3,COLORINDEX_GREEN)
+    drawPixel(8,2,COLORINDEX_GREEN)
+    drawPixel(8,1,COLORINDEX_GREEN)
+
+# display the game over screen, show the points at end of game
+def drawGameOverScreen():
+    while not myQueue.empty():
+        myQueue.get()
+    clearScreen()
+    #E
+    drawPixel(4,1,COLORINDEX_RED)
+    drawPixel(5,1,COLORINDEX_RED)
+    drawPixel(6,1,COLORINDEX_RED)
+    drawPixel(4,2,COLORINDEX_RED)
+    drawPixel(4,3,COLORINDEX_RED)
+    drawPixel(5,3,COLORINDEX_RED)
+    drawPixel(4,4,COLORINDEX_RED)
+    drawPixel(4,5,COLORINDEX_RED)
+    drawPixel(5,5,COLORINDEX_RED)
+    drawPixel(6,5,COLORINDEX_RED)
+
+    #N
+    drawPixel(4,7,COLORINDEX_RED)
+    drawPixel(4,8,COLORINDEX_RED)
+    drawPixel(4,9,COLORINDEX_RED)
+    drawPixel(4,10,COLORINDEX_RED)
+    drawPixel(4,11,COLORINDEX_RED)
+    
+    #drawPixel(5,8,COLORINDEX_RED)
+    drawPixel(5,10,COLORINDEX_RED)
+
+    drawPixel(6,7,COLORINDEX_RED)
+    drawPixel(6,8,COLORINDEX_RED)
+    drawPixel(6,9,COLORINDEX_RED)
+    drawPixel(6,10,COLORINDEX_RED)
+    drawPixel(6,11,COLORINDEX_RED)
+
+    #D
+    drawPixel(4,13,COLORINDEX_RED)
+    drawPixel(4,14,COLORINDEX_RED)
+    drawPixel(4,15,COLORINDEX_RED)
+    drawPixel(4,16,COLORINDEX_RED)
+    drawPixel(4,17,COLORINDEX_RED)
+    
+    drawPixel(5,13,COLORINDEX_RED)
+    drawPixel(5,17,COLORINDEX_RED)
+
+    drawPixel(6,14,COLORINDEX_RED)
+    drawPixel(6,15,COLORINDEX_RED)
+    drawPixel(6,16,COLORINDEX_RED)
+    updateScreen()
+    time.sleep(0.5)
+    
+    while True:
+        if PI:
+            pollGamepadInput()
+        else:
+            checkForQuit()
+            pollKeyboardInput()
+        while not myQueue.empty():
+            event = myQueue.get()
+            if event.type == QKEYDOWN:
+                if PI:
+                    MAX2719device.clear()
+                return
+
+
 
 def updateStartScreen(currentScreen):
     clearScreen()
