@@ -14,6 +14,8 @@ from PIL import Image # tested with pillow-6.2.1
 PI = True
 import pygame
 from pygame.locals import *
+from random import randint # random numbers
+import datetime
 if PI:
     import serial
     from luma.led_matrix.device import max7219
@@ -35,6 +37,8 @@ MAX2719_ORIENTATION=90 # Corrects block orientation when wired vertically choice
 MAX2719_ROTATION=0 # Rotate display 0=0°, 1=90°, 2=180°, 3=270° choices=[0, 1, 2, 3]
 #PORT_NAME = "/dev/ttyAMA0"
 PORT_NAME = "/dev/ttyS0"
+GAMEPAD_DEVICE = '/dev/input/event2' # PS4 Controler
+#GAMEPAD_DEVICE = '/dev/input/event1' # PS3 Controller
 
 SIZE= 20
 FPS = 15
@@ -294,7 +298,7 @@ if PI:
     MAX2719device = max7219(spiPort, cascaded=MAX2719_DISPLAYS, block_orientation=MAX2719_ORIENTATION,
                     rotate=MAX2719_ROTATION or 0, blocks_arranged_in_reverse_order=False)
     #creates object 'gamepad' to store the data
-    gamepad = InputDevice('/dev/input/event2')
+    gamepad = InputDevice(GAMEPAD_DEVICE)
     print(gamepad)
 else:
     MAX2719device = 0
@@ -418,7 +422,7 @@ def main():
     currentScreen = SCREEN_TETRIS
     #nextScreen = -1
     clearScreen()
-    drawClock(COLORINDEX_GREEN,False)
+    drawClock(COLORINDEX_GREEN)
     clearScreen()
     # if PI:
     #     show_message(MAX2719device, "Let's play", fill="white", font=proportional(CP437_FONT),scroll_delay=0.03)
@@ -1059,13 +1063,15 @@ def drawSymbols():
 #TODO separate drawing and control flow
 #draws a clock on the main screen with or without seconds
 #color - 
-def drawClock(color, withSeconds=True):
+def drawClock(color):
     if PI:
         MAX2719device.clear()
-
-    hour =  time.localtime().tm_hour
-    minute= time.localtime().tm_min
-    second= time.localtime().tm_sec
+    lastExecutiontime = time.localtime(0)
+    CLK_MODE_DEFAULT = 0 # 24h, no seconds
+    CLK_MODE_SECONDS =1 # 24h, with seconds
+    CLK_MODE_PARTY = 2 # Random Background
+    CLK_MODE_PARTYTIME = 3 
+    clockMode = CLK_MODE_DEFAULT
 
     while True:
         if PI:
@@ -1075,35 +1081,51 @@ def drawClock(color, withSeconds=True):
         while not myQueue.empty():
             event = myQueue.get()
             if event.type == QKEYDOWN:
-                #if event.key == BUTTON_GREEN:
-                return
-            # elif event.type == QKEYUP:
-            #     if event.key == BUTTON_YELLOW:
-            #         return
+                if event.key == BUTTON_RED: # toggle different clock modes
+                    clockMode+=1
+                    if clockMode==4:
+                        clockMode=0
+                else:
+                    return
         if not PI:
             checkForQuit()
 
-        ltime =  time.localtime()
-        hour = ltime.tm_hour
-        minute= ltime.tm_min
-        second= ltime.tm_sec
-        clearScreen()
+        now =  time.localtime()
+        if (time.mktime(now)-time.mktime(lastExecutiontime)>0) :
+            hour = now.tm_hour
+            minute= now.tm_min
+            second= now.tm_sec
+            clearScreen()
 
-        if(withSeconds):
-            drawnumber(int(hour/10),2,1,color)
-            drawnumber(int(hour%10),6,1,color)
-            drawnumber(int(minute/10),2,8,color)
-            drawnumber(int(minute%10),6,8,color)
-            drawnumber(int(second/10),2,15,color)
-            drawnumber(int(second%10),6,15,color)
-        else:
-            drawnumber(int(hour/10),2,3,color)
-            drawnumber(int(hour%10),6,3,color)
-            drawnumber(int(minute/10),2,10,color)
-            drawnumber(int(minute%10),6,10,color)
+            if(clockMode==CLK_MODE_PARTY or clockMode==CLK_MODE_PARTYTIME):
+                #color=7
+                for x in range(PIXEL_X):
+                    for y in range(PIXEL_Y):
+                        drawPixelRgb(x,y,randint(0,255),randint(0,255), randint(0,255))
+                        time.sleep(0.001) #TODO saw some data loss without a delay
 
-        updateScreen()
-        time.sleep(.2)
+            if(clockMode==CLK_MODE_DEFAULT):
+                drawnumber(int(hour/10),2,3,color)
+                drawnumber(int(hour%10),6,3,color)
+                drawnumber(int(minute/10),2,10,color)
+                drawnumber(int(minute%10),6,10,color)
+            elif(clockMode==CLK_MODE_SECONDS):
+                drawnumber(int(hour/10),2,1,color)
+                drawnumber(int(hour%10),6,1,color)
+                drawnumber(int(minute/10),2,8,color)
+                drawnumber(int(minute%10),6,8,color)
+                drawnumber(int(second/10),2,15,color)
+                drawnumber(int(second%10),6,15,color)
+            elif(clockMode==CLK_MODE_PARTYTIME):
+                drawnumber(int(hour/10),2,1,8)
+                drawnumber(int(hour%10),6,1,8)
+                drawnumber(int(minute/10),2,8,8)
+                drawnumber(int(minute%10),6,8,8)
+                drawnumber(int(second/10),2,15,8)
+                drawnumber(int(second%10),6,15,8)
+
+            updateScreen()
+            time.sleep(.2)
 
 
 def drawImage(filename):
