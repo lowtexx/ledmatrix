@@ -25,20 +25,19 @@ if PI:
     from luma.core.legacy import show_message, text
     import asyncio
     from evdev import InputDevice, categorize, ecodes # PS4 inputs
+    import evdev
     from select import select
 
 # only modify this two values for size adaption!
 PIXEL_X=10
 PIXEL_Y=20
-
+#TODO implement MineSweeper?
 
 MAX2719_DISPLAYS=4 # number of cascaded displays
 MAX2719_ORIENTATION=90 # Corrects block orientation when wired vertically choices=[0, 90, -90]
 MAX2719_ROTATION=0 # Rotate display 0=0°, 1=90°, 2=180°, 3=270° choices=[0, 1, 2, 3]
 #PORT_NAME = "/dev/ttyAMA0"
 PORT_NAME = "/dev/ttyS0"
-GAMEPAD_DEVICE = '/dev/input/event2' # PS4 Controler
-#GAMEPAD_DEVICE = '/dev/input/event1' # PS3 Controller
 
 SIZE= 20
 FPS = 15
@@ -298,8 +297,8 @@ if PI:
     MAX2719device = max7219(spiPort, cascaded=MAX2719_DISPLAYS, block_orientation=MAX2719_ORIENTATION,
                     rotate=MAX2719_ROTATION or 0, blocks_arranged_in_reverse_order=False)
     #creates object 'gamepad' to store the data
-    gamepad = InputDevice(GAMEPAD_DEVICE)
-    print(gamepad)
+    #gamepad = InputDevice(GAMEPAD_DEVICE)
+    #print(gamepad)
 else:
     MAX2719device = 0
 
@@ -351,22 +350,49 @@ def client(ip, port, message):
     finally:
         sock.close()
 
+# returns the first device that does not contain Touchpad or motion (PS4)
+def findController():
+    for fname in evdev.list_devices():
+        dev = evdev.InputDevice(fname)
+        print(dev.name)
+        if "Touchpad" in dev.name:
+            next
+        elif "Motion Sensor" in dev.name:
+            next
+        else:
+            return dev
 
-#checks for input of the gamepad, non blocking
-def pollGamepadInput():
-    r,w,x = select([gamepad], [], [],0)
-    if r:
-        for event in gamepad.read():
-            if event.type == ecodes.EV_KEY:
-                if event.value == 1: # button pressed
-                    thisEventType = QKEYDOWN
-                else:
-                    thisEventType = QKEYUP
-                # try to get the correct key mapping
-                mappedEventCode = controllerEventMapper.get(event.code,-1)
-                if mappedEventCode != -1: # only insert when button has a mapping
-                    myQueue.put(qEvent(mappedEventCode,thisEventType)) 
-
+def gamePadListener():
+    gamePadConnected = False
+    while True: 
+        if gamePadConnected==False:
+            gamepad = findController()
+            if(gamepad):
+                print(gamepad)
+                gamePadConnected=True
+            else:
+                time.sleep(0.5)
+        else: # gamepad is available --> read it
+            r,w,x = select([gamepad], [], [],0)
+            if r:
+                try:
+                    for event in gamepad.read():        
+                    #filters by event type
+                        if event.type == ecodes.EV_KEY:
+                            #print(event)
+                            if event.value == 1: # button pressed
+                                thisEventType = QKEYDOWN
+                            else:
+                                thisEventType = QKEYUP
+                            # try to get the correct key mapping
+                            mappedEventCode = controllerEventMapper.get(event.code,-1)
+                            if mappedEventCode != -1: # only insert when button has a mapping
+                                myQueue.put(qEvent(mappedEventCode,thisEventType)) 
+                except OSError:
+                    time.sleep(0.5)
+                    gamePadConnected=False
+                    continue
+        time.sleep(0.01)
 
 def pollKeyboardInput():
     for event in pygame.event.get():
@@ -404,6 +430,8 @@ def main():
         #MAX2719device.brightness(1) TODO needs fix
         MAX2719device.clear()
         #MAX2719device.show_message("Waiting for controller...", font=proportional(CP437_FONT),delay=0.015)
+        gamePadThread = threading.Thread(target=gamePadListener,daemon=True)
+        gamePadThread.start()
 
     # Port 0 means to select an arbitrary unused port
 
@@ -430,9 +458,7 @@ def main():
     while True:       
         updateStartScreen(currentScreen)
         while myQueue.empty():
-            if PI:
-                pollGamepadInput()
-            else:
+            if not PI:
                 pollKeyboardInput()
             time.sleep(.1)
             updateScreen()
@@ -488,9 +514,7 @@ def runPongGame():
     lastUpperMoveSidewaysTime = time.time()
 
     while True: # main game loop for pong
-        if PI:
-            pollGamepadInput()
-        else:
+        if not PI:
             pollKeyboardInput()
         while not myQueue.empty():
             event = myQueue.get()
@@ -647,9 +671,7 @@ def runSnakeGame():
     apple = getRandomLocation()
 
     while True: # main game loop
-        if PI:
-            pollGamepadInput()
-        else:
+        if not PI:
             pollKeyboardInput()
         if not myQueue.empty():
             event = myQueue.get()
@@ -762,41 +784,9 @@ def runTetrisGame():
                 time.sleep(2)
                 return # can't fit a new piece on the board, so game over
         if not PI:
-            checkForQuit()
-        if PI:
-            pollGamepadInput()
-        else:
             pollKeyboardInput()
+            checkForQuit()
   
-
-#ugly hack to get keyboard inputs directly without the simulation
-#add the pygame key events to the local key event queue
-#TODO this needs to be done globally
-        # if not PI:
-        #     for event in pygame.event.get():
-        #     #if event.type == pygame.QUIT:  # Usually wise to be able to close your program.
-        #     #    raise SystemExit
-        #         if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
-        #             if event.type == pygame.KEYDOWN:
-        #                 thisEventType = QKEYDOWN
-        #             else:
-        #                 thisEventType = QKEYUP
-        #             if event.key == pygame.K_UP:
-        #                 myQueue.put(qEvent(BUTTON_UP,thisEventType)) 
-        #             elif event.key == pygame.K_DOWN:
-        #                 myQueue.put(qEvent(BUTTON_DOWN,thisEventType))
-        #             elif event.key == pygame.K_LEFT:
-        #                 myQueue.put(qEvent(BUTTON_LEFT,thisEventType))
-        #             elif event.key == pygame.K_RIGHT:
-        #                 myQueue.put(qEvent(BUTTON_RIGHT,thisEventType))
-        #             elif event.key == pygame.K_1: # Maps #1 Key to Blue Button 
-        #                 myQueue.put(qEvent(BUTTON_BLUE,thisEventType))
-        #             elif event.key == pygame.K_2: # Maps #2 Key to Green Button 
-        #                 myQueue.put(qEvent(BUTTON_GREEN,thisEventType))
-        #             elif event.key == pygame.K_3: # Maps #3 Key to Red Button
-        #                 myQueue.put(qEvent(BUTTON_RED,thisEventType))
-        #             elif event.key == pygame.K_4: # Maps #4 Key to Yellow Button
-        #                 myQueue.put(qEvent(BUTTON_YELLOW,thisEventType))
 
         while not myQueue.empty():
             event = myQueue.get()
@@ -998,9 +988,7 @@ def drawGameOverScreen():
     time.sleep(0.5)
     
     while True:
-        if PI:
-            pollGamepadInput()
-        else:
+        if not PI:
             checkForQuit()
             pollKeyboardInput()
         while not myQueue.empty():
@@ -1074,9 +1062,7 @@ def drawClock(color):
     clockMode = CLK_MODE_DEFAULT
 
     while True:
-        if PI:
-            pollGamepadInput()
-        else:
+        if not PI:
             pollKeyboardInput()
         while not myQueue.empty():
             event = myQueue.get()
